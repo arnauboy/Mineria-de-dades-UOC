@@ -1,0 +1,480 @@
+---
+title: 'Mineria de dades: PAC3 - Classificació amb arbres de decisió'
+author: "Autor: Nom estudiant"
+date: "Desembre 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header.html
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval=T, echo=T)
+```
+
+*****
+# Recursos bàsics
+*****
+
+Aquesta Prova d'Avaluació Continuada (PAC) cobreix principalment el mòdul de models supervisats i d'avaluació de models. 
+
+Complementaris:
+
+* El material docent "Creació i avaluació de models no supervisats" proporcionat per la UOC.
+* Fitxer titanic.csv.
+* R package C5.0 (Decision Trees and Rule-Based Models): https://cran.r-project.org/web/packages/c50/index.html
+* Fitxer de "German Credit": credit.csv (es va obtenir de https://www.kaggle.com/shravan3273/credit-approval)
+
+La descripció de les variables es pot veure a https://archive.ics.uci.edu/ml/datasets/statlog+(german+credit+data)
+
+**La variable "default" és el target sent 1 = "No default" i 2 = "Default". S'han de fer servir aquestes dades per a la realització dels exercicis.**
+
+
+
+
+
+*****
+# Exemple il·lustratiu  
+*****
+
+En aquest exercici seguirem els passos del cicle de vida d'un projecte de mineria de dades, per al cas d'un algorisme de classificació i més concretament un arbre de decisió. Primer i a tall d'exemple senzill ho farem amb l'arxiu titanic.csv, que es troba adjunt a l'aula. Aquest arxiu conté un registre per cada passatger que viatjava en el Titanic. En les variables es caracteritza si era home o dona, adult o menor (nen), en quina categoria viatjava o si era membre de la tripulació.
+Es mostrarà un exemple senzill de solució amb aquestes dades però els alumnes haureu de respondre a les preguntes de la rúbrica per a un altre conjunt: German Credit. Per a aquest conjunt, prendreu com a referència la variable "default" que indica l'impagament de crèdits.
+
+*Objectius:*
+
+*	Estudiar les dades, per exemple: Nombre de registres del fitxer? Distribucions de valors per variables? Hi ha camps mal informats o buits?
+*	Preparar les dades. En aquest cas ja estan en el format correcte i no és necessari discretizar ni generar atributs nous. Cal triar quines són les variables que s'utilitzaran per a construir el model i quina és la variable que classifica. En aquest cas la variable per la qual classificarem és el camp de si el passatger sobrevivia o no.
+*	Instal·lar, si és necessari, el paquet C5.0  Es tracta d'una implementació més moderna de l'algorisme ID3 de Quinlan. Té els principis teòrics de l'ID3 més la poda automàtica. Amb aquest paquet generar un model de mineria.
+*	Quina és la qualitat del model?
+*	Generar l'arbre gràficament.
+* Generar i extreure les regles del model.
+*	En funció del model, l'arbre i les regles: Quin és el coneixement que obtenim?
+*	Provar el model generat presentant-li nous registres. Classifica prou bé?
+
+A continuació, es plantegen els punts a realitzar en la PAC 3 i, prenent com a exemple el conjunt de dades de Titanic, s'obtindran, a tall d'exemple, alguns resultats que pretendre servir a manera  d'inspiració per als estudiants.
+Els estudiants hauran d'utilitzar el conjunt de dades de "German Credit Data" que es poden aconseguir en aquest enllaç: https://www.kaggle.com/shravan3273/credit-approval
+
+Aquest recurs pot ser útil per a aprofundir sobre el paquet IML: https://uc-r.github.io/iml-pkg
+  
+Revisió de les dades, extracció visual d'informació i preparació de les dades
+
+Càrrega de les dades:
+
+```{r message= FALSE, warning=FALSE}
+data<-read.csv("./titanic.csv",header=T,sep=",")
+attach(data)
+```
+
+## Anàlisi inicial
+
+Començarem fent una breu anàlisi de les dades ja que ens interessa tenir una idea general de les dades que disposem. Per això, primer calcularem les dimensions de la nostra base de dades i analitzarem quins tipus d'atributs tenim.
+
+### Exploració de la base de dades
+
+Primer calculem les dimensions de la base de dades mitjançant la funció dim(). Obtenim que disposem de 2201 registres o passatgers (files) i 4 variables (columnes). 
+
+```{r}
+dim(data)
+```
+
+Quines són aquestes variables? Gràcies a la funció str() sabem que les quatre variables són categòriques o  discretes, és a dir, prenen valors en un conjunt finit. La variable CLASS fa referència a la classe en la qual viatjaven els passatgers (1a, 2a, 3a o crew), AGE determina si era adult o nen (Adult o Menor), la variable SEX si era home o dona (Home o Dona) i l'última variable (SURVIVED) informa si el passatger va morir o va sobreviure en l'accident (Mor o Sobreviu).
+```{r}
+str(data)
+```
+
+Transformem les variables a tipus factor.
+
+```{r}
+data[] <- lapply(data, factor)
+str(data)
+```
+
+És de gran interès saber si tenim molts valors nuls (camps buits) i la distribució de valors per variables. És per això recomanable començar l'anàlisi amb una visió general de les variables. Mostrarem per a cada atribut la quantitat de valors perduts mitjançant la funció summary. 
+
+```{r}
+summary(data)
+```
+
+Com a part de la preparació de les dades, mirarem si hi ha valors missing.
+
+```{r}
+missing <- data[is.na(data),]
+dim(missing)
+```
+
+Observem fàcilment que no hi ha valors missing i, per tant, no haurem de preparar les dades en aquest sentit. En cas d'haver-los, caldria prendre decisions per a tractar les dades adequadament.
+
+Disposem per tant d'un data frame format per quatre variables categòriques sense valors nuls. 
+
+### Visualització
+
+Per a un coneixement major sobre les dades, tenim al nostre abast unes eines molt valuoses: les eines de visualització. Per a aquestes visualitzacions, farem ús dels paquets ggplot2, gridExtra i grid de R. 
+
+
+
+```{r}
+if(!require(ggplot2)){
+    install.packages('ggplot2', repos='http://cran.us.r-project.org')
+    library(ggplot2)
+}
+if(!require(ggpubr)){
+    install.packages('ggpubr', repos='http://cran.us.r-project.org')
+    library(ggpubr)
+}
+if(!require(grid)){
+    install.packages('grid', repos='http://cran.us.r-project.org')
+    library(grid)
+}
+if(!require(gridExtra)){
+    install.packages('gridExtra', repos='http://cran.us.r-project.org')
+    library(gridExtra)
+}
+if(!require(C50)){
+    install.packages('C50', repos='http://cran.us.r-project.org')
+    library(C50)
+}
+
+```
+
+Sempre és important analitzar les dades que tenim ja que les conclusions dependran de les característiques de la mostra.
+
+```{r}
+grid.newpage()
+plotbyClass<-ggplot(data,aes(CLASS))+geom_bar() +labs(x="Class", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("blue","#008000"))+ggtitle("Class")
+plotbyAge<-ggplot(data,aes(AGE))+geom_bar() +labs(x="Age", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("blue","#008000"))+ggtitle("Age")
+plotbySex<-ggplot(data,aes(SEX))+geom_bar() +labs(x="Sex", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("blue","#008000"))+ggtitle("Sex")
+plotbySurvived<-ggplot(data,aes(SURVIVED))+geom_bar() +labs(x="Survived", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("blue","#008000"))+ggtitle("SURVIVED")
+grid.arrange(plotbyClass,plotbyAge,plotbySex,plotbySurvived,ncol=2)
+
+```
+
+Clarament veiem com és la mostra analitzant la distribució de les variables disponibles. De cara als informes, és molt més interessant aquesta informació que l'obtinguda en summary, que es pot usar per a complementar.
+
+Ens interessa descriure la relació entre la supervivència i cadascun de les variables esmentades anteriorment. Per a això, d'una banda graficaremos mitjançant diagrames de barres la quantitat de morts i supervivents segons la classe en la qual viatjaven, l'edat o el sexe. D'altra banda, per a obtenir les dades que estem graficant utilitzarem la comanda table per a dues variables que ens proporciona una taula de contingència.
+
+```{r}
+grid.newpage()
+plotbyClass<-ggplot(data,aes(CLASS,fill=SURVIVED))+geom_bar() +labs(x="Class", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("Survived by Class")
+plotbyAge<-ggplot(data,aes(AGE,fill=SURVIVED))+geom_bar() +labs(x="Age", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("Survived by Age")
+plotbySex<-ggplot(data,aes(SEX,fill=SURVIVED))+geom_bar() +labs(x="Sex", y="Passengers")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("Survived by Sex")
+grid.arrange(plotbyClass,plotbyAge,plotbySex,ncol=2)
+
+```
+
+D'aquests gràfics obtenim informació molt valuosa que complementem amb les taules de contingència (llistades a baix). D'una banda, la quantitat de passatgers que van sobreviure és similar en homes i dones (homes: 367 i dones 344). No, en canvi, si tenim en compte el percentatge respecte al seu sexe. És a dir, malgrat que la quantitat de dones i homes que van sobreviure és similar, viatjaven més homes que dones (470 dones i 1731 homes), per tant, la taxa de mort en homes és molt major (el 78,79% dels homes van morir mentre que en dones aquest percentatge baixa a 26,8%). 
+
+Referent a la classe en la qual viatjaven, els passatgers que viatjaven en primera classe van ser els únics que el percentatge de supervivència era major que el de mortalitat. El 62,46% dels viatgers de primera classe va sobreviure, el 41,4% dels quals viatjaven en segona classe mentre que dels viatgers de tercera i de la tripulació només van sobreviure un 25,21% i 23,95% respectivament. Per a finalitzar, destaquem que la presència de passatgers adults era molt major que la dels nens (2092 enfront de 109) i que la taxa de supervivència en nens va ser molt major (52,29% enfront de 31,26%), no podem obviar, en canvi, que els únics nens que van morir van ser tots passatgers de tercera classe (52 nens).
+
+```{r}
+tabla_SST <- table(SEX, SURVIVED)
+tabla_SST
+prop.table(tabla_SST, margin = 1)
+```
+
+```{r}
+tabla_SCT <- table(CLASS,SURVIVED)
+tabla_SCT
+prop.table(tabla_SCT, margin = 1)
+```
+
+```{r}
+tabla_SAT <- table(AGE,SURVIVED)
+tabla_SAT
+prop.table(tabla_SAT, margin = 1) 
+```
+
+```{r}
+tabla_SAT.byClass <- table(AGE,SURVIVED,CLASS)
+tabla_SAT.byClass
+```
+
+### Test estadístics de significança
+
+Els resultats anteriors mostren les dades de manera descriptiva, podem afegir algun test estadístic per a validar el grau de significança de la relació. La llibreria "DescTools" ens permet instal·lar-ho fàcilment.
+
+
+```{r}
+if(!require(DescTools)){
+    install.packages('DescTools', repos='http://cran.us.r-project.org')
+    library(DescTools)
+}
+```
+```{r}
+Phi(tabla_SST) 
+CramerV(tabla_SST) 
+```
+```{r}
+Phi(tabla_SAT) 
+CramerV(tabla_SAT) 
+```
+
+```{r}
+Phi(tabla_SCT) 
+CramerV(tabla_SCT) 
+```
+
+Valors de la V de Cramér (https://en.wikipedia.org/wiki/cramér%27s_V) i Phi (https://en.wikipedia.org/wiki/phi_coefficient) entre 0.1 i 0.3 ens indiquen que l'associació estadística és baixa, i entre 0.3 i 0.5 es pot considerar una associació mitjana. Finalment, si els valors fossin superiors a 0.5 (no és el cas), l'associació estadística entre les variables seria alta.
+Com es pot apreciar, els valors de Phi i V coincideixen. Això ocorre en el context d'analitzar taules de contingència 2x2.
+
+Una alternativa interessant a les barres de diagrames, és el plot de les taules de contingència. Obtenim la mateixa informació però per a alguns analistes pot resultar més visual. 
+
+```{r}
+par(mfrow=c(2,2))
+plot(tabla_SCT, col = c("black","#008000"), main = "SURVIVED vs. CLASS")
+plot(tabla_SAT, col = c("black","#008000"), main = "SURVIVED vs. AGE")
+plot(tabla_SST, col = c("black","#008000"), main = "SURVIVED vs. SEX")
+```
+
+El nostre objectiu és crear un arbre de decisió que permeti analitzar quin tipus de passatger del Titanic tenia probabilitats de sobreviure o no. Per tant, la variable per la qual classificarem és el camp de si el passatger va sobreviure o no. De tota manera, en imprimir les primeres (amb head) i últimes 10 (amb tail) files ens adonem que les dades estan ordenades.
+
+```{r}
+head(data,10)
+tail(data,10)
+```
+
+## Preparació de les dades per al model
+
+Per a la futura avaluació de l'arbre de decisió, és necessari dividir el conjunt de dades en un conjunt d'entrenament i un conjunt de prova. El conjunt d'entrenament és el subconjunt del conjunt original de dades utilitzat per a construir un primer model; i el conjunt de prova, el subconjunt del conjunt original de dades utilitzat per a avaluar la qualitat del model. 
+
+El més correcte serà utilitzar un conjunt de dades diferent del que utilitzem per a construir l'arbre, és a dir, un conjunt diferent del d'entrenament. No hi ha cap proporció fixada respecte al nombre relatiu de components de cada subconjunt, però la més utilitzada acostuma a ser 2/3 per al conjunt d'entrenament i 1/3, per al conjunt de prova. 
+
+La variable per la qual classificarem és el camp de si el passatger va sobreviure o no, que està en la quarta columna. D'aquesta forma, tindrem un conjunt de dades per a l'entrenament i un per a la validació.
+
+```{r}
+set.seed(666)
+y <- data[,4] 
+X <- data[,1:3] 
+```
+De manera dinàmica podem definir una manera de separar les dades en funció d'un paràmetre, en aquest cas del "split_prop".
+Definim un paràmetre que controla el split de manera dinàmica en el test.
+
+```{r}
+split_prop <- 3 
+indexes = sample(1:nrow(data), size=floor(((split_prop-1)/split_prop)*nrow(data)))
+trainX<-X[indexes,]
+trainy<-y[indexes]
+testX<-X[-indexes,]
+testy<-y[-indexes]
+```
+
+Després d'una extracció aleatòria de casos és altament recomanable efectuar una anàlisi de dades mínim per a assegurar-nos de no obtenir classificadors esbiaixats pels valors que conté cada mostra. En aquest cas, verificarem que la proporció del supervivents és més o menys constant en els dos conjunts:
+
+```{r}
+summary(trainX);
+summary(trainy)
+summary(testX)
+summary(testy)
+```
+
+Verifiquem fàcilment que no hi ha diferències greus que puguin esbiaixar les conclusions.
+
+## Creació del model, qualitat del model i extracció de regles
+
+Es crea l'arbre de decisió usant les dades d'entrenament (cal no oblidar que la variable outcome és de tipus factor):
+
+```{r}
+trainy = as.factor(trainy)
+model <- C50::C5.0(trainX, trainy,rules=TRUE )
+summary(model)
+```
+
+Errors mostra el número i percentatge de casos mal classificats en el subconjunt d'entrenament. L'arbre obtingut classifica erròniament 317 dels 1467 casos donats, una taxa d'error del 21.6%.
+
+A partir de l'arbre de decisió de dues fulles que hem modelat, es poden extreure les següents regles de decisió (gràcies a rules=TRUE podem imprimir les regles directament):
+
+SEX = "Home" → Mor. Validesa: 78,9%
+
+CLASS "3ª"  → Mor. Validesa: 74,1%
+
+CLASS "1ª", "2ª", "crew" y SEX = "Mujer" → Sobrevive. Validesa: 91,1%
+
+Per tant, podem concloure que el coneixement extret i creuat amb l'anàlisi visual es resumeix en "les dones i els nens primer a excepció que anessis de 3a classe".
+
+A continuació, procedim a mostrar l'arbre obtingut.
+
+```{r}
+model <- C50::C5.0(trainX, trainy)
+plot(model,gp = gpar(fontsize = 9.5))
+```
+
+## Validació del model amb les dades reservades
+Una vegada tenim el model, podem comprovar la seva qualitat predient la classe per a les dades de prova que ens hem reservat al principi.
+
+```{r}
+predicted_model <- predict( model, testX, type="class" )
+print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model == testy) / length(predicted_model)))
+```
+
+Quan hi ha poques classes, la qualitat de la predicció es pot analitzar mitjançant una matriu de confusió que identifica els tipus d'errors comesos.
+
+```{r}
+mat_conf<-table(testy,Predicted=predicted_model)
+mat_conf
+```
+
+Una altra manera de calcular el percentatge de registres correctament classificats usant la matriu de confusió:
+
+```{r}
+
+porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
+
+```
+
+A més, tenim a la nostra disposició el paquet gmodels per a obtenir informació més completa:
+
+```{r}
+if(!require(gmodels)){
+    install.packages('gmodels', repos='http://cran.us.r-project.org')
+    library(gmodels)
+}
+```
+
+```{r}
+CrossTable(testy, predicted_model,prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE,dnn = c('Reality', 'Prediction'))
+```
+
+## Prova amb una variació o un altre enfocament algorítmic
+
+En aquest apartat buscarem provar amb les variacions que ens ofereix el paquet C5.0 per a analitzar com afecten a la creació dels arbres generats. Existeixen moltes possibles variacions amb altres funcions que podeu investigar. La idea és seguir amb l'enfocament d'arbres de decisió explorant possibles opcions.
+Una vegada tinguem un mètode alternatiu, hem d'analitzar com es modifica l'arbre i com afecta a la capacitat predictiva en el conjunt de test.
+
+A continuació, utilitzem un altre enfocament per a comparar els resultats: incorpora com a novetat "adaptative boosting", basat en el treball de Rob Schapire i Yoav Freund (1999). La idea d'aquesta tècnica és generar diversos classificadors, amb els seus corresponents arbres de decisió i la seva ser de regles. Quan un nou cas serà classificat, cada classificador vota com és la classe predita. Els vots són sumats i determina la classe final.
+
+```{r}
+modelo2 <- C50::C5.0(trainX, trainy, trials = 10)
+plot(modelo2)
+```
+
+En aquest cas, donada la simplicitat del conjunt d'exemple, no s'aprecien diferències, però apareixeran en dades de major complexitat i modificant el paràmetre "trials" es pot intentar millorar els resultats.
+
+Veiem a continuació com són les prediccions del nou arbre:
+
+```{r}
+predicted_model2 <- predict( modelo2, testX, type="class" )
+print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model2 == testy) / length(predicted_model2)))
+```
+
+Observem com es modifica lleument la precisió del model a millor.
+
+```{r}
+mat_conf<-table(testy,Predicted=predicted_model2)
+mat_conf
+```
+
+Una altra manera de calcular el percentatge de registres correctament classificats usant la matriu de confusió:
+
+```{r}
+
+porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
+
+```
+
+L'algorisme C5.0 incorpora algunes opcions per a veure la importància de les variables (veure documentació per als detalls entre els dos mètodes):
+
+```{r}
+importancia_usage <- C50::C5imp(modelo2, metric = "usage")
+importancia_splits <- C50::C5imp(modelo2, metric = "splits")
+importancia_usage
+importancia_splits
+```
+
+Curiosament i encara que el conjunt de dades és molt senzill, s'aprecien diferències en els mètodes d'importància de les variables. Es recomana en el vostre exercici millorar la visualització dels resultats amb la funció ggplo2 o similar.
+
+
+## Interpretació de les variables en les prediccions.
+
+Ens interessa saber per a les prediccions que variable són les que tenen més influència. Així, provarem amb un enfocament algorítmic de Random Forest i obtindrem mètriques de interpretabilidad amb la llibreria IML (https://cran.r-project.org/web/packages/iml/iml.pdf):
+
+```{r}
+if(!require(randomForest)){
+  install.packages('randomForest',repos='http://cran.us.r-project.org')
+  library(randomForest)
+}
+if(!require(iml)){
+  install.packages('iml', repos='http://cran.us.r-project.org')
+  library(iml)
+}
+```
+
+Primerament executem un Random Forest:
+
+```{r}
+train.data <- as.data.frame(cbind(trainX,trainy))
+colnames(train.data)[4] <- "SURVIVED"
+rf <-  randomForest(SURVIVED ~ ., data = train.data, ntree = 50)
+```
+
+Podem mesurar i graficar la importància de cada variable per a les prediccions del random forest amb _FeatureImp_. La mesura es basa funcions de pèrdua de rendiment que en el nostre cas serà amb l'objectiu de classificació ("ce").
+
+```{r}
+X <- train.data[which(names(train.data) != "SURVIVED")]
+predictor <- Predictor$new(rf, data = X, y = train.data$SURVIVED) 
+imp <- FeatureImp$new(predictor, loss = "ce")
+plot(imp)
+imp$results
+```
+Addicionalment, podem també dibuixar els efectes locals acumulats (ALE) de la variable usant la libreria _patchwork_:
+  
+```{r}
+if(!require(patchwork)){
+    install.packages('patchwork',repos='http://cran.us.r-project.org')
+    library(patchwork)
+}
+
+effs <- FeatureEffects$new(predictor)
+plot(effs)
+```
+
+Com podem veure, el gènere és la variable amb més importància per a les prediccions, sent les dones molt més propenses a sobreviure.
+Nota: S'espera que els alumnes aprofundeixin en la funció de cara a la resolució dels exercicis.
+
+# Enunciat de l'exercici
+
+Pel conjunt de dades German Credit, els alumnes han de completar aquí la solució a la PEC3 que consisteix dels següents apartats. Noteu que es detalla el contingut necessari per cada apartat en el punt 4 (Rúbrica).
+
+El format d'entrega és com les anteriors PACs: **usernameestudiant-PACn.html** (o PDF/Word) i el codi **Rmd**.  
+
+S'ha d'entregar la PAC a la bustia de lliuraments de l'aula, com amb les anteriors PACs. 
+
+## Realitza un primer anàlisi descriptiu i de correlacions. És important en aquest apartat entendre bé les dades abans de seguir amb els anàlisis posteriors. Llista tot el que t'hagi sorprès de les dades
+
+
+## Desenvolupa un primer arbre de decisió. Pots decidir utilitzar totes les variables o, de forma justificada, eliminar-ne alguna per a l'ajust del model
+
+
+## Amb l'arbre obtingut, realitza una breu explicació de les regles obtingudes així com de tots els punts que et semblin interessants. Un element a considerar és, per exemple, quantes observacions cauen dins de cada regla
+
+
+## Una vegada tinguis un model vàlid, procedeix a realitzar un anàlisi de la bondat d'ajust sobre el conjunt de test amb la matriu de confusió. Et sembla un model prou bo com per a utilitzar-lo? Justifica la teva resposta considerant tots els possibles tipus d'error
+
+
+## Amb un enfocament semblant als punts anteriors i considerant les mateixes variables, enriqueix l'exercici mitjançant l'ajust de models complementaris. És el nou enfocament millor que l'original? Justifica la resposta
+
+
+## Fes un resum de les principals conclusions de tots els anàlisis i models realitzats
+
+******
+# Rúbrica
+******
+* (Obligatori) S'ha de realitzar un breu informe (Html) on es responguin a les preguntes concretes, mostrant en primer lloc el codi utilitzat, després els resultats i posteriorment els comentaris que es considerin pertinents per a cada apartat.  
+* 10% Hi ha un estudi sobre les dades dels quals es parteix, les variables que componen les dades. Les dades són preparades correctament.
+* 10% Es realitza una anàlisi descriptiva univariant (o anàlisi de rellevància) d'algunes variables una vegada s'han tractat vs el target a nivell gràfic, comentant les que aparentment són més interessants. Anàlogament es realitza una anàlisi de correlacions.
+* 20% S'aplica un arbre de decisió de manera correcta i s'obté una estimació de l'error, mostrant gràficament l'arbre obtingut. La visualització ha de ser comprensible i adequada al problema a resoldre.
+* 15% S'expliquen les regles que s'obtenen en termes concrets del problema a resoldre.
+* 10% S'usa el model per a predir amb mostres no usades en l'entrenament (holdout) i s'obté una estimació de l'error. Sobre la base de la matriu de confusió, es comenten els tipus d'errors i es valora de forma adequada la capacitat predictiva de l'algorisme.
+* 10% Es prova un altre model d'arbre o variants diferents del C50 i es comparen els resultats obtinguts, valorant si són millors. Es recomana experimentar provant de fer un Random Forest (llibrería de R _randomForest_ (https://cran.r-project.org/web/packages/randomForest/randomForest.pdf)).  
+* 10% Amb els resultats obtinguts anteriorment, es presenten unes conclusions contextualitzades on s'exposa un resum dels diferents models utilitzats (almenys 3) així com el coneixement adquirit després del treball realitzat i els descobriments més importants realitzats en el conjunt de dades.
+* 10% Utilitza mètriques de explicabilidad com les comentades en l'exemple per a obtenir conclusions de les dades.
+* 5% Es presenta el codi i és fàcilment reproduïble.
+

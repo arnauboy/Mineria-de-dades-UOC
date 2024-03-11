@@ -1,0 +1,202 @@
+---
+title: 'Mineria de dades: PRA2 - Projecte de mineria de dades'
+author: "Autor: Nom de l'estudiant"
+date: "Gener 2024"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header.html
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+******
+# Enunciat
+******
+
+Com a continuació de l'estudi iniciat a la Pràctica 1, procedim a **aplicar models analítics, tant no supervisats com supervisats**, sobre el joc de dades seleccionat i preparat. En aquesta **Pràctica 2** haureu de carregar les dades prèviament preparades a la **Pràctica 1**.
+
+
+**Punt comú per a tots els exercicis**
+
+En tots els apartats dels exercicis d'aquesta pràctica es demana a l'estudiant, a més d'aplicar els diferents mètodes i d'analitzar correctament el problema, **detallar de manera exhaustiva** ressaltant el perquè i com s'ha realitzat, incloent-hi elements visuals, explicant els resultats i realitzant les comparatives oportunes amb les seves conclusions.
+
+Per a tota la pràctica és necessari documentar cada apartat de l'exercici pràctic que s'ha fet, el perquè s'ha fet i com s'ha fet. Així mateix, totes les decisions i conclusions hauran de ser presentades de forma raonada i clara, **contextualitzant els resultats**, és a dir, especificant tots i cadascun dels passos que s'hagin dut a terme per resoldre'ls.
+
+
+D'aquesta manera es demana a l'estudiant que completi els passos següents amb el job de dades preparat a la Practica 1:
+
+**Models no supervisats**
+
+1. Aplicar un model **no supervisat** basat en el concepte de distància, sobre el joc de dades.
+
+2. Aplicar de nou el model anterior, però usant una **mètrica de distància diferent** i comparar-ne els resultats amb els mètodes anteriors.
+
+3. Utilitzar els algorismes **DBSCAN i OPTICS**, provant amb diferents valors del paràmetre `eps` i `minPts`, i es comparen els resultats amb els mètodes anteriors.
+
+**Models supervisats**
+
+4. Seleccionar una mostra d'entrenament i una de test utilitzant les proporcions que es considerin més adequades en funció de la disponibilitat de dades. Justificar aquesta selecció.
+
+5. Aplicar un model de generació de regles a partir d' **arbres de decisió** ajustant les diferents opcions de creació. Obtenir l'arbre sense i amb opcions de poda. Obtenir la matriu de confusió. Finalment, comparar-ne els resultats.
+
+6. Aplicar un **model supervisat** diferent del del punt 5., s'ha de triar entre els que s'han vist al material docent de l'assignatura. Comparar el resultat amb el model generat anteriorment.
+
+7. Identificar eventuals **limitacions** del dataset seleccionat i **analitzar els riscos** per al cas d'ús del model per a classificar una nova dada.
+
+
+******
+# Criteris d'avaluació
+******
+
+* Exercici 1 - 25%
+  - Es genera un model no supervisat.
+  - S'analitzen, mostren i comenten les mesures de qualitat del model generat.
+  - Es resumeixen les conclusions principals.
+
+* Exercici 2 - 10%
+  - Es genera de nou el model no supervisat anterior, però usant una mètrica de distància diferent.
+  - Es mostren i es comenten les mesures de qualitat del model generat.
+  - Addicionalment, es comparen els dos models no supervisats amb mètriques de distància diferents.
+  - Es resumeixen les conclusions principals.
+
+* Exercici 3 - 10%
+  - S'apliquen els algorismes DBSCAN i OPTICS de forma correcta.
+  - Es proven, descriuen i interpreten els resultats amb diferents valors d'eps i minPts.
+  - S'obté una mesura de com és de bo l'agrupament.
+  - Es comparen els resultats obtinguts dels models dels exercicis 1 i 2.
+  - Es resumeixen les conclusions principals.
+  
+* Exercici 4 - 10%
+  - Se seleccionen les mostres d'entrenament i test.
+  - Es justifiquen les proporcions seleccionades.
+
+* Exercici 5 - 20%
+  - Es generen regles i es comenten i interpreten les més significatives.
+  - S'extreuen les regles del model en format text i gràfic.
+  - Addicionalment, es genera matriu de confusió per mesurar la capacitat predictiva de l'algoritme, tenint en compte les diferents mètriques associades a aquesta matriu (precisió, sensibilitat, especificitat...).
+  - Es comparen i interpreten els resultats (sense i amb opcions de poda), explicant els avantatges i els inconvenients del model generat respecte a un altre mètode de construcció.
+  - S'avalua la taxa d'error de l'arbre generat, l'eficiència a la classificació (a les mostres d'entrenament i test) i la comprensibilitat del resultat.
+  - Es resumeixen les conclusions principals.
+
+* Exercici 6 - 15%
+  - Es prova amb una variació o un altre enfocament algorítmic.
+  - Es detalla, comenta i avalua la qualitat de classificació.
+  - Es comparen i es comenten els resultats de manera exhaustiva amb el mètode de construcció anterior.
+
+* Exercici 7 - 10%
+  - S'identifica quines possibles limitacions tenen les dades que has seleccionat per obtenir conclusions amb els models (supervisat i no supervisat)
+  - S'identifiquen possibles riscos de fer servir el model (mínim 300 paraules).
+  
+
+******
+# Recursos de programació
+******
+* Incloem en aquest apartat una llista de recursos de programació per a mineria de dades on podreu trobar exemples, idees i inspiració:
+ 
+  + [Espai de recursos UOC per a ciència de dades](http://datascience.recursos.uoc.edu/es/)
+  + [Cercador de codi R](https://rseek.org/)
+  + [Col·lecció de cheatsheets en R](https://rstudio.com/resources/cheatsheets/)
+  
+******
+# Format i data de lliurament
+******
+
+El format de lliurament és: l'output generat en format **.html** amb nom **username_estudiant-PRA2**.
+
+La data límit de lliurament és el 17/01/2024.
+
+
+******
+# RESPOSTES
+******
+
+## Exercici 1
+
+### Es genera un model no supervisat.
+
+### S'analitzen, mostren i comenten les mesures de qualitat del model generat.
+
+### Es comenten les conclusions.
+
+***
+
+## Exercici 2
+
+### Es genera de nou el model no supervisat anterior, però usant una mètrica de distància diferent.
+
+### Es mostren i es comenten les mesures de qualitat del model generat.
+
+### Addicionalment es comparen els dos models no supervisats amb mètriques de distància diferents.
+
+### Es comenten les conclusions.
+
+***
+
+## Exercici 3
+
+### S'apliquen els algorismes DBSCAN i OPTICS de forma correcta.
+
+### Es proven, descriuen i interpreten els resultats amb diferents valors d'`eps` i `minPts`.
+
+### S'obté una mesura de com és de bo l'agrupament.
+
+### Es comparen els resultats obtinguts dels models anteriors i DBSCAN.
+
+### Es comenten les conclusions.
+
+*** 
+
+## Exercici 4
+
+### Es seleccionen les mostres d'entrenament i de prova.
+
+### justifiquen les proporcions seleccionades.
+
+*** 
+
+## Exercici 5
+
+### Es generen regles i es comenten i interpreten les més significatives.
+
+### S'extreuen les regles del model en format text i gràfic.
+
+### Addicionalment, es genera la matriu de confusió per a mesurar la capacitat predictiva de l'algoritme, tenint en compte les diferents mètriques associades a aquesta matriu (precisió, sensibilitat, especificitat...)..
+
+### Es comparen i interpreten els resultats (sense i amb opcions de poda), explicant els avantatges i els inconvenients del model generat respecte a un altre mètode de construcció.
+
+### S'avalua la taxa d'error de l'arbre generat, l'eficiència a la classificació (a les mostres d'entrenament i test) i la comprensibilitat del resultat.
+
+### Es comenten les conclusions.
+
+***
+
+## Exercici 6
+
+### Es prova amb una variació o un altre enfocament algorítmic.
+
+### Es detalla, comenta i avalua la qualitat de classificació.
+
+### Es comparen i es comenten els resultats de manera exhaustiva amb el mètode de construcció anterior.
+
+***
+
+## Exercici 7
+
+### S'identifica quines possibles limitacions tenen les dades que has seleccionat per obtenir conclusions amb els models (supervisat i no supervisat)
+
+### S'identifiquen possibles riscos de fer servir el model (mínim 300 paraules).
+
+***

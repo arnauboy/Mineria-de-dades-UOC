@@ -1,0 +1,402 @@
+---
+title: 'Mineria de dades: PEC2 - Mètodes no supervisats'
+author: "Autor: Nom estudiant"
+date: "Octubre 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header.html
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+******
+# Exemple guiat 1.1
+## Mètodes d'agregació k-means amb dades autogenerades
+******
+En aquest exemple generarem un conjunt de mostres aleatòries per a posteriorment fer servir l'algoritme *k-means* per agrupar-les. Es crearan les mostres al voltant de dos punts concrets. Així doncs, lo lògic serà agrupar en dos clústers. Donat que inicialment, en un problema real, no es coneix quin es el número idoni de clústers k, provarem primer amb dos (el valor òptim) i posteriorment amb 4 i 8 clústers. Per a avaluar la qualitat de cada procés d'agrupació farem servir la silueta mitjana. La silueta de cada mostra avalua com de bé o malament està classificada cada mostra en el clúster al que ha estat assignada. Per això es fa servir una fórmula que té en compte la distància a les mostres del seu clúster i la distància a les mostres del clúster veí més proper.  
+
+A l'hora de provar el codi que es mostra, és important tenir en compte que les mostres es generen de forma aleatòria i també que l'algoritme *k-means* té una inicialització aleatòria. Així doncs, en cada execució, s'obtindran uns resultats lleugerament diferents.  
+
+Lo primer que fem es carregar la llibreria clúster que conté les funcions que es necessiten  
+
+
+```{r message= FALSE, warning=FALSE}
+if (!require('cluster')) install.packages('cluster')
+library(cluster)
+```
+
+Generem les mostres de forma aleatòria prenent com a centre els punts [0,0] i [5,5].  
+
+```{r message= FALSE, warning=FALSE}
+n <- 150 # número de mostres
+p <- 2   # dimensions
+
+sigma <- 1 # Variància de la distribució
+mean1 <- 0 # centre del primer grup
+mean2 <- 5 # centre del segon grup
+
+n1 <- round(n/2) # número de mostres del primer grup
+n2 <- round(n/2) # número de mostres del segon grup
+
+x1 <- matrix(rnorm(n1*p,mean=mean1,sd=sigma),n1,p)
+x2 <- matrix(rnorm(n2*p,mean=mean2,sd=sigma),n2,p)
+```
+
+Ajuntem totes les mostres generades i les mostrem en una gràfica  
+
+```{r message= FALSE, warning=FALSE}
+x  <- rbind(x1,x2)
+plot (x, xlab="Grup 1", ylab="Grup 2")
+```
+
+Com es pot comprovar les mostres estan clarament separades en dos grups. Si es vol complicar el problema es pot modificar els punts centrals (mean1 i mean2) fent que estiguin més propers i/o ampliar la Variància (sigma) per a que les mostres estiguin més disperses.   
+
+A continuació aplicarem l'algoritme *k-means* amb 2, 4 i 8 clústers   
+
+```{r message= FALSE, warning=FALSE}
+fit2       <- kmeans(x, 2)
+y_cluster2 <- fit2$cluster
+
+fit4       <- kmeans(x, 4)
+y_cluster4 <- fit4$cluster
+
+fit8       <- kmeans(x, 8)
+y_cluster8 <- fit8$cluster
+```
+
+Les variables y_cluster2, y_cluster4 i y_cluster8 contenen per a cada mostra l'identificador del clúster a les que han estat assignades. Per exemple, en el cas dels k=2 les mostres s'han assignat al clúster 1 o al 2.  
+
+```{r message= FALSE, warning=FALSE}
+y_cluster2
+```
+
+Per a visualitzar els clústers podem fer servir la funció clusplot. Mirem l'agrupació amb 2 clústers i observem pràcticament no hi ha valors extrems i realment els dos clústers generats són homogenis.  
+
+```{r message= FALSE, warning=FALSE}
+clusplot(x, fit2$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+```
+
+amb 4 observem com el clúster de l'esquerra l'ha dividit en tres.  
+
+```{r message= FALSE, warning=FALSE}
+clusplot(x, fit4$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+```
+
+i amb 8. L'algoritme fa cas al que se li demana i ens genera 8 clústers tot i que visualment ja es veu que el resultat no és massa consistent.  
+
+```{r message= FALSE, warning=FALSE}
+clusplot(x, fit8$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+```
+
+També podem visualitzar el resultat del procés d'agrupament amb el següent codi per al cas de 2 clústers. L'ús de colors facilita la identificació visual de clústers.  
+
+```{r message= FALSE, warning=FALSE}
+plot(x[y_cluster2==1,],col='blue', xlim=c(min(x[,1]), max(x[,1])), ylim=c(min(x[,2]), max(x[,2])), xlab = "Dimensió 1", ylab = "Dimensió 2")
+points(x[y_cluster2==2,],col='red')
+```
+
+per a 4  
+
+```{r message= FALSE, warning=FALSE}
+
+plot(x[y_cluster4==1,],col='blue', xlim=c(min(x[,1]), max(x[,1])), ylim=c(min(x[,2]), max(x[,2])), xlab = "Dimensió 1", ylab = "Dimensió 2")
+points(x[y_cluster4==2,],col='red')
+points(x[y_cluster4==3,],col='green')
+points(x[y_cluster4==4,],col='black')
+```
+
+i per a 8  
+
+```{r message= FALSE, warning=FALSE}
+plot(x[y_cluster8==1,],col='blue', xlim=c(min(x[,1]), max(x[,1])), ylim=c(min(x[,2]), max(x[,2])), xlab = "Dimensió 1", ylab = "Dimensió 2")
+points(x[y_cluster8==2,],col='red')
+points(x[y_cluster8==3,],col='green')
+points(x[y_cluster8==4,],col='black')
+points(x[y_cluster8==5,],col='yellow')
+points(x[y_cluster8==6,],col='purple')
+points(x[y_cluster8==7,],col='cyan')
+points(x[y_cluster8==8,],col='orange')
+```
+
+Ara avaluarem la qualitat de l'agregació. Per això farem servir la funció silhouette que calcula la silueta de cada mostra  
+
+```{r message= FALSE, warning=FALSE}
+d  <- daisy(x) 
+sk2 <- silhouette(y_cluster2, d)
+sk4 <- silhouette(y_cluster4, d)
+sk8 <- silhouette(y_cluster8, d)
+```
+
+La funció silhouette retorna per a cada mostra, el clúster on ha estat assignat, el clúster veí i el valor de la silueta. Així doncs, calculant la mitjana de la tercera columna podem obtenir una estimació de la qualitat de l'agrupament.  
+
+```{r message= FALSE, warning=FALSE}
+mean(sk2[,3])
+mean(sk4[,3])
+mean(sk8[,3])
+```
+
+Com es pot comprovar, agrupar en dos clústers es millor que en 4 o en 8, lo qual es lògic tenint en compte com s'han generat les dades.  
+
+Una bona pràctica alhora d'entendre millor el joc de dades, consisteix en posar nom a cadascun dels clústers identificats. Ho veurem més clarament en el següent exemple que parteix de dades reals.
+
+******
+# Exemple guiat 1.2
+## Mètodes d'agregació k-means amb dades reals
+******
+
+A continuació estudiarem un altre exemple de com es fan servir els models d'agregació. Per a això farem servir el joc de dades **penguins** contingut en el paquet R **palmerpenguins**. Aquest joc de dades es troba descrit a https://cran.r-project.org/web/packages/palmerpenguins/index.html i conté medicions de grandària, observacions de postes i proporcions d'isòtops sanguinis de tres espècies de pingüins observades en tres illes de l'arxipèlag Palmer, a l'Antàrtida, durant un període d'estudi de tres anys.  
+
+Aquest dataset està prèviament treballat perquè les dades estiguin netes i sense errors. Si no és així abans de res hauríem de buscar errors, valors nuls o outliers. Hauríem tractar de discretitzar o eliminar columnes. Fins i tot realitzar aquest últim pas diverses vegades per comprovar els diferents resultats i triar el que millor rendiment ens doni. De totes maneres conté algun valor nul que procedirem a ignorar.    
+
+Procedim a visualitzar l'estructura i resum del joc de dades.  
+
+```{r message= FALSE, warning=FALSE}
+if (!require('palmerpenguins')) install.packages('palmerpenguins')
+library(palmerpenguins)
+# palmerpenguins::penguins
+summary(penguins)
+```
+
+Com es pot comprovar, aquesta base de dades està pensada per a problemes de classificació supervisada que pretén classificar cada tipus de pingüí en una de les tres classes o espècies existents (Adelie, Gentoo o Chinstrap). Com en aquest exemple farem servir un mètode no supervisat, transformarem el problema supervisat original en un **no supervisat **. Per aconseguir-ho no farem servir la columna *species*, que és la variable que es vol predir. Per tant, intentarem trobar agrupacions usant únicament els quatre atributs numèrics que caracteritzen cada espècie de pingüí.  
+ 
+Carreguem les dades i ens quedem únicament amb les quatre columnes que defineixen a cada espècie.   
+
+```{r message= FALSE, warning=FALSE}
+x <- na.omit(penguins[,3:6])
+```
+
+En aquest cas hem plantejat un exemple més realista i per tant inicialment no coneixem el número òptim de clústers. Comencem provant amb varis valors.   
+
+```{r message= FALSE, warning=FALSE}
+d <- daisy(x) 
+resultados <- rep(0, 10)
+for (i in c(2,3,4,5,6,7,8,9,10))
+{
+  fit           <- kmeans(x, i)
+  y_cluster     <- fit$cluster
+  sk            <- silhouette(y_cluster, d)
+  resultados[i] <- mean(sk[,3])
+}
+```
+
+Mostrem en una gràfica els valors de la silueta mitja de cada prova per comprovar quin número de clusters és el millor.  
+
+```{r message= FALSE, warning=FALSE}
+plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Número de clusters",ylab="Silueta")
+```
+
+Tot i que un esperaria obtenir un valor òptim per a k = 3, sembla que del gràfic es desprèn que es millor k = 4 o fins i tot k = 5.  
+
+Un altre forma d'avaluar quin és el millor nombre de clústers és considerar el millor model, aquell que ofereix la menor suma dels quadrats de les distàncies dels punts de cada grup respecte al seu centre (withinss), amb la major separació entre centres de grups (betweenss). Com es pot comprovar és una idea conceptualment similar a la silueta. Una manera comuna de fer la selecció del nombre de clústers consisteix a aplicar el mètode *elbow* (colze), que no és més que la selecció del nombre de clústers d'acord amb la inspecció de la gràfica que s'obté al iterar amb el mateix conjunt de dades per a diferents valors de nombre de clústers. S'ha de seleccionar el valor que es troba en el "colze" de la corba.  
+
+```{r message= FALSE, warning=FALSE}
+resultados <- rep(0, 10)
+for (i in c(2,3,4,5,6,7,8,9,10))
+{
+  fit           <- kmeans(x, i)
+  resultados[i] <- fit$tot.withinss
+}
+plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Nombre de clústers",ylab="tot.tot.withinss")
+```
+
+En aquest cas el número òptim de clústers es 4, que és quan la corba comença a estabilitzar-se.  
+
+També es pot fer servir la funció *kmeansruns* del paquet **fpc** que executarà l'algoritme kmeans com un conjunt de valors i seleccionarà el valor del número de clústers que millor funcioni d'acord amb dos criteris: la silueta mitja (asw) i *Calinski-Harabasz* ("ch").   
+
+```{r message= FALSE, warning=FALSE}
+if (!require('fpc')) install.packages('fpc'); library('fpc')
+fit_ch  <- kmeansruns(x, krange = 1:10, criterion = "ch") 
+fit_asw <- kmeansruns(x, krange = 1:10, criterion = "asw") 
+```
+
+Podem comprovar el valor amb el que s'ha obtingut el millor resultat i també mostrar el resultat obtingut per a tots els valors de k fent servir tots dos criteris.  
+
+```{r message= FALSE, warning=FALSE}
+fit_ch$bestk
+fit_asw$bestk
+
+plot(1:10,fit_ch$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criteri Calinski-Harabasz")
+plot(1:10,fit_asw$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criteri silueta mitja")
+```
+
+Els resultats son molt semblants als que hem obtingut anteriorment. Amb el criteri de la silueta mitja s'obtenen dos clústers i amb el *Calinski-Harabasz* s'obtenen 3.  
+
+Com s'ha comprovat, conèixer el número òptim de clústers no és un problema fàcil. Tampoc ho és la visualització dels models d'agregació.  
+
+Com en el cas que estudiem sabem que les dades poden ser agrupades en 3 classes, vegem com es comporta el *kmeans* en aquest cas. Per això comparem visualment els camps dos a dos, amb el valor real que sabem està emmagatzemat en el camp class del dataset original.  
+
+(Aclarim que òbviament no acostuma a passar que coneguem de forma prèvia el nombre de clústers òptim. Aquest exemple el plantegem amb finalitats didàctiques i amb voluntat d'experimentar)  
+
+```{r message= FALSE, warning=FALSE}
+penguins3clusters <- kmeans(x, 3)
+
+# bill_lLength y bill_depth
+plot(x[c(1,2)], col=penguins3clusters$cluster, main="Classificació k-means")
+plot(x[c(1,2)], col=as.factor(penguins$species), main="Classificació real")
+```
+
+Podem observar que *flipper_length* i *body_mass* no són bons indicadors per diferenciar a les tres subespècies, atès que dues de les subespècies estan massa barrejades per poder diferenciar res.  
+
+```{r message= FALSE, warning=FALSE}
+# flipper_length y body_mass
+plot(x[c(3,4)], col=penguins3clusters$cluster, main="Classificació k-means")
+plot(x[c(3,4)], col=as.factor(penguins$species), main="Classificació real")
+```
+
+```{r message= FALSE, warning=FALSE}
+# bill_length y flipper_length
+plot(x[c(1,3)], col=penguins3clusters$cluster, main="Classificació k-means")
+plot(x[c(1,3)], col=as.factor(penguins$species), main="Classificació real")
+```
+ 
+Les dues mesures de *bill* semblen aconseguir millors resultats al dividir les tres espècies de pingüins. El grup format pels punts negres que ha trobat l'algoritme coincideix amb els de l'espècie *Adelie*. Els altres dos grups però es barregen  més, i hi ha certs punts que es classifiquen com *Gentoo* (verd) quan en realitat són *Chinstrap* (vermell).  
+ 
+ Una bona tècnica que ajuda a entendre els grups que s'han format, és mirar de donar-los un nom. Com per exemple:  
+ 
+ - Grup 1: Només *Adelie* (color negre)  
+ - Grup 2: Principalment *Chinstrap* (color vermell)  
+ - Grup 3: Barreja de *Gentoo* (color verd) i *Adelie* (color negre)  
+ 
+ Això ens ajuda a entendre com estan formats els grups i a referir-nos a ells en anàlisis posteriors.  
+
+Tot plegat ens indica que establir el nombre de grups o clústers en un joc de dades no és un aspecte que puguem assegurar que sempre encertarem amb precisió i a més ho farem de forma objectiva, ven al contrari és un àmbit d'estudi que requereix d'anàlisi en si mateix.
+
+Us deixem en el següent enllaç un material didàctic complementari que us pot ajudar a aprofundir en el tema de la selecció del nombre clúster més adequat per a un joc de dades:  
+<a href="http://datascience.recursos.uoc.edu/es/como-podemos-elegir-el-numero-de-clusteres" target="_blank">datascience.recursos.uoc.edu</a>
+ 
+Com a continuació de l'estudi podríem seguir experimentant combinant en gràfics similars als anteriors. En definitiva es tractaria en aquest punt d'aprofundir més en el coneixement de les propietats de les diferents característiques o columnes de el joc de dades.   
+
+******
+# Exemple guiat 2
+## Mètodes basats en densitat: DBSCAN i OPTICS
+******
+En el següent exemple treballarem els algoritmes **DBSCAN** i **OPTICS** com a mètodes de clustering que permeten la generació de grups no radials a diferència de k-means. Veurem que el seu paràmetre de entrada més rellevant és *minPts* que defineix la mínima densitat acceptada al voltant d'un centroide. 
+
+Incrementar aquest paràmetre ens permetrà reduir el soroll (observacions no assignades a cap clúster), en qualsevol cas començarem per construir el nostre propi joc de dades en el que dibuixarem 4 zones de punts diferenciades.  
+
+
+```{r message= FALSE, warning=FALSE}
+if (!require('dbscan')) install.packages('dbscan'); library('dbscan')
+set.seed(2)
+n <- 400
+x <- cbind(
+x = runif(4, 0, 1) + rnorm(n, sd=0.1),
+y = runif(4, 0, 1) + rnorm(n, sd=0.1)
+)
+plot(x, col=rep(1:4, time = 100))
+```
+
+
+Una de las primeres activitats que realitza l'algoritme és **ordenar les observacions** de forma que els punts més propers es converteixin en veïns en l'ordenament. Es podria pensar com una representació numèrica del dendograma d'una agrupació jeràrquica.  
+
+```{r message= FALSE, warning=FALSE}
+### Executem l'algoritme OPTICS deixant el paràmetre eps amb el seu valor per defecte i fixant el criteri de veïnatge en 10
+res <- optics(x, minPts = 10)
+res
+### Obtenim la ordenació de les observacions o punts
+res$order
+
+```
+
+Un altre pas molt interessant de l'algoritme és la generació d'un **diagrama d'accessibilitat** o *reachability plot,* en el que s'aprecia d'una forma visual la distància d'accessibilitat de cada punt.  
+
+Les valls representen clústers (com més profund és la vall, més dens és el clúster), mentre que els cims indiquen els punts que estan entre les agrupacions (aquests punts són candidats a ser considerats *outliers*)  
+
+```{r message= FALSE, warning=FALSE}
+### Gràfic d'accessibilitat
+plot(res)
+```
+  
+  
+Vegem una altra representació del diagrama d'accessibilitat, on podem observar les traces de les distàncies entre punts propers del mateix clúster i entre clústers diferents.  
+
+
+```{r message= FALSE, warning=FALSE}
+### Dibuixem les traces que relacionen punts
+plot(x, col = "grey")
+polygon(x[res$order,])
+```
+
+
+Un altre exercici interessant a realitzar és extraure una agrupació de la ordenació realitzada per OPTICS similar a lo que DBSCAN hagués  generat establint el paràmetre eps en eps_cl = 0.065. En aquest sentit convidem l'estudiant a experimentar amb diferents valors d'aquest paràmetre.   
+
+
+```{r message= FALSE, warning=FALSE}
+### Extracció d'un clústering DBSCAN tallant l'accessibilitat en el valor eps_cl
+res <- extractDBSCAN(res, eps_cl = .065)
+res
+plot(res) ## negre indica soroll
+```
+
+Observem en el gràfic anterior com s'han pintat de color els 4 clústers i en negre es mantenen els valors *outliers* o extrems.  
+
+Seguim endavant amb una representació gràfica que ens mostra els clústers mitjançant formes convexes.  
+
+
+```{r message= FALSE, warning=FALSE}
+hullplot(x, res)
+```
+  
+Repetim l'experiment anterior incrementant el paràmetre *epc_c*, vegem com l'efecte que produeix és la concentració de clústers ja que flexibilitzem la condició de densitat   
+
+
+```{r message= FALSE, warning=FALSE}
+### Incrementem el paràmetre eps
+res <- extractDBSCAN(res, eps_cl = .1)
+res
+plot(res)
+hullplot(x, res)
+```
+
+
+Vegem ara una variant de la extracció DBSCN anterior. En ella el paràmetre *xi* ens servirà per a classificar els clústers en funció del canvi en la densitat relativa dels mateixos.  
+
+
+```{r message= FALSE, warning=FALSE}
+### Extracció del clustering jeràrquic en funció de la variació de la densitat pel mètode xi
+res <- extractXi(res, xi = 0.05)
+res
+plot(res)
+hullplot(x, res)
+```
+
+# Exercicis
+Els exercicis es realitzaran sobre la base del joc de dades *Hawks* present en el paquet R *Stat2Data*.  
+
+Els estudiants i el professorat del Cornell College a Mount Vernon, Iowa, van recollir dades durant molts anys al mirador de falcons de l'estany MacBride, prop d'Iowa City, a l'estat d'Iowa. El joc de dades que analitzem aquí és un subconjunt del conjunt de dades original, utilitzant només aquelles espècies per a les que hi havia més de 10 observacions. Les dades es van recollir en mostres aleatòries de tres espècies diferents de falcons: Cua-roja, Esparver i Falcó de Cooper.  
+
+Hem seleccionat aquest joc de dades per la seva semblança amb el joc de dades *penguins* i pel seu potencial alhora d'aplicar-li algoritmes de mineria de dades no supervisats. Les variables numèriques en què us basareu són: *Wing*, *Weight*, *culmen*, *Hallux*    
+
+
+## Exercici 1
+Presenta el joc de dades, nom i significat de cada columna, així com les distribucions dels seus valors.  
+
+Realitza un estudi aplicant el mètode K-means, similar al dels exemples 1.1 i 1.2    
+
+### Resposta 1
+> Escriu aquí la resposta a la pregunta
+
+
+## Exercici 2
+Amb el joc de dades proporcionat realitza un estudi aplicant DBSCAN i OPTICS, similar al de l'exemple 2   
+
+### Resposta 2
+> Escriu aquí la resposta a la pregunta
+
+## Exercici 3
+Realitza una comparativa dels mètodes *k-means* i *DBSCAN*   
+
+### Resposta 3
+> Escriu aquí la resposta a la pregunta

@@ -1,0 +1,433 @@
+---
+title: 'Mineria de dades: PAC3 - Classificació amb arbres de decisió'
+author: "Autor: Arnau Garcia Rodríguez"
+date: "Desembre 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header.html
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval=T, echo=T)
+```
+
+# Joc de dades
+
+Utilitzarem el joc de dades '*Credit approval*', obtingut a https://www.kaggle.com/shravan3273/credit-approval. Aquest conté informació sobre clients i indica si han complert o no les obligacions dels préstecs anteriors. Aquesta última dada ens servirà per dur a terme un projecte de mineria de dades sobre **algoritmes supervisats**, més concretament d'**arbres de decisió**, on generarem un joc de dades d'entrenament i un de proves per generar un model de predicció.
+
+El primer pas es carregar el joc de dades:
+
+```{r message= FALSE, warning=FALSE}
+data<-read.csv("./credit.csv",header=T,sep=",")
+attach(data)
+```
+
+## Descripció dels atributs
+
+- checking_balance: Estat del compte corrent existent. Categòrica.
+- months_loan_duration: Duració del prèstec en mesos. Contínua.
+- credit_history: Historial de crèdits. Categòrica.
+- purpose: Motiu del crèdit. Categòrica.
+- amount: Quantitat. Contínua.
+- savings_balance: Quantitat estlaviada. Categòrica.
+- employment_length: Duració a la feina actual. Categòrica.
+- installment_rate: Taxa de pagament a terminis en porcentaje respecte l'ingrés disponible. Contínua.
+- personal_status: Estat civil i sexe. Categòrica.
+- other_debtors: Altres deutors. Categòrica.
+- residence_history: Duració a la seva residència actual. Contínua.
+- property: Tipus de propietat. Categòrica.
+- age: Edat en anys. Contínua.
+- installment_plan: Altres plans de fraccionament. Categòrica.
+- housing: Habitatge. Categòrica.
+- existing_credits: Crèdits existens en aquest banc. Contínua.
+- default: Client va cumplir o inclumplir prèstecs anteriors. Binària.
+- dependents: Nombre de persones dependents. Contínua.
+- telephone: Número de telèfon. Binària. 
+- foreign_worker: Treballador estranger. Binària. 
+- job:  Feina. Categòrica.      
+
+# Anàlisi inicial
+
+Donarem un primer cop d'ull a les dades, observant-ne les dimensions i quin tipus d'atributs tenim.
+
+```{r}
+dim(data)
+```
+
+Com podem observar, disposem de **1000 tuples** i **21 atributs**. A continuació, descriurem cadascun d'aquests.
+
+```{r}
+str(data)
+summary(data)
+```
+
+Algunes observacions que ens ajudaran a conèixer el joc de dades:
+
+* Edat mitjana de **35,55 anys**
+* **20,9 mesos** de mitjana de duració del préstec
+* Mitjana de **3291 dòlars** de préstec
+
+Transformem les variables a tipus factor per veure quants valors existeixen per variable.
+
+```{r}
+data[] <- lapply(data, factor)
+str(data)
+```
+
+Veiem com per a les variables contínues el resultat és més elevat, com era d'esperar. L'exemple més clar és la variable **amount**, amb 921 *levels*.
+
+A continuació executarem la funció *summary* per veure la distribució de valors per variable i per trobar possibles valors nuls.
+
+```{r}
+summary(data)
+```
+
+Podem veure com existeixen 700 clients que han complert amb préstecs anteriors i 300 que no ho han fet. És a dir, el **70%** no són clients de risc.
+
+Sembla que no hi ha valors nuls, tot i que tenim valors desconeguts marcats com *unknown* a les variables **checking_balance**, **savings_balance** i **property**.  Ara, busquem valors no disponibles (NA).
+
+```{r}
+missing <- data[is.na(data),]
+dim(missing)
+```
+
+L'execució mostra que no hi ha valors NA. 
+
+Les dades es troben bastant preparades per a l'anàlisi de dades, per la qual cosa ens facilitarà la feina i ens estalviarà passos a la fase de Preprocessament de les dades.
+
+Per tant, tenim dades sense valors nuls i 21 variables. 
+
+## Visualització de les dades 
+
+Instal·larem llibreries per utilitzar diferents eines de visualització per a les nostres dades.
+
+```{r}
+if(!require(ggplot2)){
+    install.packages('ggplot2', repos='http://cran.us.r-project.org')
+    library(ggplot2)
+}
+if(!require(ggpubr)){
+    install.packages('ggpubr', repos='http://cran.us.r-project.org')
+    library(ggpubr)
+}
+if(!require(grid)){
+    install.packages('grid', repos='http://cran.us.r-project.org')
+    library(grid)
+}
+if(!require(gridExtra)){
+    install.packages('gridExtra', repos='http://cran.us.r-project.org')
+    library(gridExtra)
+}
+if(!require(C50)){
+    install.packages('C50', repos='http://cran.us.r-project.org')
+    library(C50)
+}
+```
+
+Les variables del joc de dades amb les que treballarem seran:
+
+* employment_length
+* checking_balance
+* personal_status
+* credit_history
+* savings_balance
+* purpose
+* default
+
+A continuació, analitzarem les dades mitjançant gràfics de columnes.
+
+```{r}
+grid.newpage()
+plotbyCheckingBalance<-ggplot(data,aes(checking_balance))+geom_bar() +labs(x="checking_balance", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("checking_balance")
+plotbyPurpose<-ggplot(data,aes(purpose))+geom_bar() +labs(x="purpose", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("purpose")
+grid.arrange(plotbyCheckingBalance,plotbyPurpose,ncol=1)
+
+grid.newpage()
+
+plotbySavings<-ggplot(data,aes(savings_balance))+geom_bar() +labs(x="savings_balance", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("savings_balance")
+plotbyEmploymentLength<-ggplot(data,aes(employment_length))+geom_bar() +labs(x="employment_length", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("employment_length")
+
+grid.arrange(plotbySavings,plotbyEmploymentLength,ncol=1)
+
+grid.newpage()
+plotbyPersonalStatus<-ggplot(data,aes(personal_status))+geom_bar() +labs(x="personal_status", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("personal_status")
+plotbyCreditHistory<-ggplot(data,aes(credit_history))+geom_bar() +labs(x="credit_history", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("credit_history")
+grid.arrange(plotbyPersonalStatus,plotbyCreditHistory,ncol=1)
+
+
+grid.newpage()
+plotbyDefault<-ggplot(data,aes(default))+geom_bar() +labs(x="default", y="Clients")+ guides(fill=guide_legend(title=""))+
+scale_fill_manual(values=c("blue","#008000"))+ggtitle("default")
+grid.arrange(plotbyDefault,ncol=1)
+```
+
+Les observacions coincideixen amb les extretes del resultat de l'execució de summary()
+
+Descriurem la relació entre clients de risc i una selecció de les variables mitjançant gràfics de barres i taules de contingència.
+
+```{r}
+grid.newpage()
+plotbyCheckingBalance<-ggplot(data,aes(checking_balance,fill=default))+geom_bar() +labs(x="checking_balance", y="Clients")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("checking_balance")
+plotbyPurpose<-ggplot(data,aes(purpose,fill=default))+geom_bar() +labs(x="purpose", y="Clients")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("purpose")
+plotbySavings<-ggplot(data,aes(savings_balance,fill=default))+geom_bar() +labs(x="savings_balance", y="Clients")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("savings_balance")
+plotbyEmplLength<-ggplot(data,aes(employment_length,fill=default))+geom_bar() +labs(x="employment_length", y="Clients")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("employment_length")
+plotbyPersonalStatus<-ggplot(data,aes(personal_status,fill=default))+geom_bar() +labs(x="personal_status", y="Clients")+ guides(fill=guide_legend(title=""))+ scale_fill_manual(values=c("black","#008000"))+ggtitle("personal_status")
+grid.arrange(plotbyCheckingBalance,plotbyPurpose,plotbySavings,plotbyEmplLength,plotbyPersonalStatus,ncol=1)
+```
+
+
+A continuació, mostrarem taules de contingències per completar la representació gràfica de les relacions entre les variables anteriors.
+
+```{r}
+tabla_CS <- table(checking_balance, savings_balance)
+tabla_CS
+prop.table(tabla_CS, margin = 1)
+```
+
+Confirmem el que haviem observat. A mesura que creixen els estalvis disponibles dels clients, menys risc.
+
+```{r}
+tabla_SP <- table(personal_status,purpose)
+tabla_SP
+prop.table(tabla_SP, margin = 1)
+```
+
+Provem amb altres variables i intentem treure alguna nova conclusió.
+
+```{r}
+tabla_ES <- table(employment_length,personal_status)
+tabla_ES
+prop.table(tabla_ES, margin = 1)
+```
+
+
+## Test estadístics de significança
+
+Farem tests estadístics per a validar el grau de significança de la relació entre els atributs. Ho farem mitjançant la llibreria DescTools. Valors de significança entre 0.1 i 0.3 ens indiquen que l'associació estadística és baixa, i entre 0.3 i 0.5 es pot considerar una associació mitjana. Finalment, si els valors fossin superiors a 0.5, l'associació estadística entre les variables seria alta.
+
+```{r}
+if(!require(DescTools)){
+    install.packages('DescTools', repos='http://cran.us.r-project.org')
+    library(DescTools)
+}
+```
+
+Cramer i Phi són dues variables que calculen formes diferents de calcular les mitges d'associació de les variables.
+
+```{r}
+Phi(tabla_CS) 
+CramerV(tabla_CS) 
+```
+```{r}
+Phi(tabla_SP) 
+CramerV(tabla_SP) 
+```
+
+```{r}
+Phi(tabla_ES) 
+CramerV(tabla_ES) 
+```
+
+Per tant, l'associació estadística entre les variables es baixa segons aquests valors resultants.
+
+Abans de començar a crear el model hem d'estar segurs que les files estan ordenades, en conseqüència, utilitzarem els mètodes *head* i *tail*.
+
+```{r}
+head(data,10)
+tail(data,10)
+```
+
+# Preparació de les dades per al model
+
+Per a dur a terme mineria de dades mitjançant arbres de decisió, necessitem dividir el conjunt de dades entre dades **d'entrenament** i de **prova**. Les proporcions seran 2/3 i 1/3 del conjunt de dades originals, respectivament.
+
+El camp pel qual classificarem serà *default*, que indica si un client ha fallat en la seva obligació de pagar el préstec. Aquest camp és el número 17:
+
+```{r}
+set.seed(666)
+y <- data[,17] 
+X <- data[, c(3,6,9)]
+```
+
+```{r}
+split_prop <- 3
+indexes = sample(1:nrow(data), size=floor(((split_prop-1)/split_prop)*nrow(data)))
+trainX<-X[indexes,]
+trainy<-y[indexes]
+testX<-X[-indexes,]
+testy<-y[-indexes]
+```
+
+```{r}
+summary(trainX);
+summary(trainy)
+summary(testX)
+summary(testy)
+```
+
+La proporció en ambdós conjunts de dades és molt semblant. No sembla que hi hagi grans diferències que puguin esbiaixar les conclusions.
+
+# Creació del model, qualitat del model i extracció de regles
+
+Primer crearem l'arbre de decisió a partir de les dades d'entrenament (trainX i trainy).
+```{r}
+trainy = as.factor(trainy)
+model <- C50::C5.0(trainX, trainy,rules=TRUE )
+summary(model)
+```
+
+Observem dues regles:
+1. La validesa en la qual un client té un historial de crèdit critical, delayed o repaid és del 72,9%.
+2. La validesa en la qual un client té un historial de crèdit fully repaid, fully repaid this bank és del 60,7%.
+
+A continuació, mostrem l'arbre resultant.
+
+```{r}
+model <- C50::C5.0(trainX, trainy)
+plot(model,gp = gpar(fontsize = 9.5))
+```
+
+Veiem un arbre amb una profunditat de dos nivells. Al Node 2 tenim 607 tuples, de les quals més del 70% són clients que han complert els préstecs anteriors. En canvi, al Node 3 tenim 58 tuples en què el 60% dels clients no compleixen el préstec. 
+
+## Validació del model amb les dades reservades
+
+Comprovarem la qualitat del model predient la classe default amb les dades de prova que hem inicialitzat anteriorment.
+
+```{r}
+predicted_model <- predict( model, testX, type="class" )
+print(sprintf("La precisió de l'arbre és: %.4f%%",100*sum(predicted_model == testy) / length(predicted_model)))
+```
+
+Ara mostrarem la matriu de confusió. Aquesta permet identificar els tipus d'errors comesos.
+
+```{r}
+mat_conf<-table(testy,Predicted=predicted_model)
+mat_conf
+```
+
+Existeix una altra forma de calcular el percentatge de registres correctament mitjançant la matriu de confusió: 
+
+```{r}
+porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
+```
+
+Efectivament, el percentatge és el mateix que el mostrat anteriorment.
+
+Amb el paquet *gmodels* podem obtenir informació més completa:
+
+```{r}
+if(!require(gmodels)){
+    install.packages('gmodels', repos='http://cran.us.r-project.org')
+    library(gmodels)
+}
+```
+
+El mètode CrossTable compara els valors reals amb les dades de les prediccions obtingudes anteriorment.
+
+```{r}
+CrossTable(testy, predicted_model,prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE,dnn = c('Reality', 'Prediction'))
+```
+
+En total tenim 334 observacions i les dues columnes i files corresponents als dos possibles valors de la variable default. Podem veure el total de cadascun dels possibles valors i la diferència amb les dades originals.  
+
+La matriu de confusió es divideix en TP (true positive), FP(false positive), FP(false positive) i FN(false negative). En el nostre cas el nombre de casos de cadascun és:
+
+* TP: 221
+* FP: 83
+* FN: 13
+* TN: 17
+
+## Prova amb una variació o un altre enfocament algorítmic
+
+Provarem amb alternatives que ens ofereix el paquet C5.0. La tècnica s'anomena *adaptative boosting* i consisteix a generar diversos classificadors, amb els seus corresponents arbres de decisió i la seva sèrie de regles. Cadascun dels classificadors votarà i la classe final serà la que voti la majoria.
+
+```{r}
+model2 <- C50::C5.0(trainX, trainy, trials = 10)
+summary(model2)
+```
+
+L'arbre és el mateix que el que s'ha generat anteriorment.
+
+```{r}
+predicted_model2 <- predict( model2, testX, type="class" )
+print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model2 == testy) / length(predicted_model2)))
+```
+
+La precisió del model és la mateixa pel que no millora l'arbre anterior i els resultats són els mateixos.
+
+## Interpretació de les variables en les prediccions.
+
+Mitjançant l'enfocament algorítmic Random Forest, obtindrem mètriques d'interpretabilitat per a veure la influència de cadascuna de les variables a les prediccions.
+
+Primer, instal·larem les llibreries **randomForest** i **iml**.
+
+```{r}
+if(!require(randomForest)){
+  install.packages('randomForest',repos='http://cran.us.r-project.org')
+  library(randomForest)
+}
+if(!require(iml)){
+  install.packages('iml', repos='http://cran.us.r-project.org')
+  library(iml)
+}
+```
+
+Executem randomForest:
+
+```{r}
+train.data <- as.data.frame(cbind(trainX,trainy))
+#4 son les variables amb les que treballem
+colnames(train.data)[4] <- "default"
+rf <-  randomForest(default ~ ., data = train.data, ntree = 50)
+```
+
+Generarem una gràfica de la pèrdua de rendiment de les dades. Mesurarem la capacitat  del model per classificar correctament 
+
+```{r}
+X <- train.data[which(names(train.data) != "default")]
+predictor <- Predictor$new(rf, data = X, y = train.data$default) 
+imp <- FeatureImp$new(predictor, loss = "ce")
+plot(imp)
+imp$results
+```
+
+```{r}
+if(!require(patchwork)){
+    install.packages('patchwork',repos='http://cran.us.r-project.org')
+    library(patchwork)
+}
+
+effs <- FeatureEffects$new(predictor)
+plot(effs)
+```
+
+Com podeu veure als gràfics anteriors i com era d'esperar, la variable credit_history és la que té més importància a les prediccions. De cadascun dels possibles valors, podeu veure com de propensos són a clients de risc o no. Per culpa de la dificultat de lectura del gràfic, no podem extreure més conclusions 
+
+## Conclusions
+
+Aquest treball ha contribuït a consolidar el coneixement teòric sobre mètodes supervisats, posant-lo en pràctica mitjançant tècniques i mètodes de paquets de R per a la construcció d'arbres de decisió. Aquests arbres es poden utilitzar com a mètodes supervisats per classificar o predir el valor categòric d'una tupla. 
+
+Durant la fase d'anàlisi de les dades hem pogut fer diverses observacions. Ens hem trobat que 7 de cada 10 clients havien pagat el seu préstec, la majoria dels préstecs eren per comprar televisions i cotxes i la majoria dels clients eren homes solters.
+
+Un cop fet l'arbre de decisió, l'únic coneixement que podem extreure és que si a l'historial de crèdit s'indica que el client ha reembossat  completament el crèdit anterior, té més possibilitats de no pagar l'actual. Hem calculat que la precisió del model és d'un 71,2575%.
+
+Hem obtingut els mateixos resultants i els mateixos arbres de decisió, independentment de la tècnica emprada per a construir-los.
+
+

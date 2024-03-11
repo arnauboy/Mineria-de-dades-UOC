@@ -1,0 +1,303 @@
+---
+title: 'Mineria de dades: PRA2 - Projecte de mineria de dades'
+author: "Autor: Arnau Garcia Rodríguez"
+date: "Gener 2024"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header-4.html
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Context i càrrega del joc de dades
+
+Aquesta entrega és la continuació del projecte iniciat a la Pràctica 1, on es va preparar el joc de dades per a poder-li aplicar els mètodes supervisats i no supervisats en aquesta segona i última part de la pràctica de l'assignatura Mineria de dades.
+
+A continuació, carreguem el joc de dades generat a partir de la primera part de la pràctica.
+
+```{r}
+path = 'result.csv'
+studentsData <- read.csv(path, row.names=NULL)
+summary(studentsData)
+```
+
+Podem observar els components principals afegits al joc de dades, a part de tota la preparació i neteja que vam dur a terme.
+
+# Anàlisi de dades
+
+Primer, analitzarem les dades mitjançant models no supervisats.
+
+## Models no supervisats
+
+### Distància
+
+Utilitzarem el mètode *k-means*, que és un mètode d'agrupament basant-se en la similitud de les observacions, la qual es mesura com la distància entre els punts de dades.
+
+Prescindirem de l'atribut G3 i ens basarem en les dimensions numèriques G1, G2 i edat per a predir la nota de l'estudiant. No tenim gaires variables numèriques contínues, per la qual cosa hem utilitzat les úniques que tenim disponibles. Discretitzarem G3 per a poder fer la comparació posteriorment amb el resultat de kmeans.
+
+```{r message= FALSE, warning=FALSE}
+library(arules)
+
+studentsData['G3d'] <- discretize(studentsData$G3, method="interval", categories = 4, labels = c('D','C','B','A'), ordered=FALSE, onlycuts=FALSE)
+summary(studentsData)
+```
+
+
+Primer, importem la llibreria *cluster*
+
+```{r message= FALSE, warning=FALSE}
+if (!require('cluster')) install.packages('cluster')
+library(cluster)
+```
+
+Seguidament, ens quedem amb les variables numèriques:
+
+
+```{r message= FALSE, warning=FALSE}
+x <- na.omit(studentsData[, c(4,21,22)])
+
+summary(x)
+```
+
+Com no sabem el nombre idoni de clústers, provem amb diversos valors. Es pot observar una gràfica que conté informació sobre cadascun dels models resultants de k-means, com la suma dels quadrats de les distàncies dels punts de cadascun dels clústers respecte el centre (withinss). Seleccionarem el valor que es trobi al colze de la corba, on comença a estabilitzar-se i per més clústers que afegeixis la densitat de punts no varia de forma significativa.
+
+```{r message= FALSE, warning=FALSE}
+resultados <- rep(0, 10)
+for (i in c(2,3,4,5,6,7,8,9,10))
+{
+  fit           <- kmeans(x, i)
+  resultados[i] <- fit$tot.withinss
+}
+plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Nombre de clústers",ylab="tot.tot.withinss")
+```
+
+Després de veure el gràfic, decidim que el valor òptim de clústers (k) és 4.
+
+Per a corroborar aquest resultat, existeixen llibreries d'R que ens poden ajudar. Podem utilitzar el mètode *kmeansruns* del paquet **fpc** que seleccionarà la que millor resultat obtingui d'acord amb els criteris de la silueta mitjana (asw) i *Calinski-Harabasz* ("ch").  
+
+```{r message= FALSE, warning=FALSE}
+if (!require('fpc')) install.packages('fpc'); library('fpc')
+fit_ch  <- kmeansruns(x, krange = 1:10, criterion = "ch") 
+fit_asw <- kmeansruns(x, krange = 1:10, criterion = "asw") 
+```
+
+Podem observar el valor amb el qual s'ha obtingut el millor resultat fent servir tots dos criteris.
+
+```{r message= FALSE, warning=FALSE}
+fit_ch$bestk
+fit_asw$bestk
+
+plot(1:10,fit_ch$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criteri Calinski-Harabasz")
+plot(1:10,fit_asw$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criteri silueta mitja")
+```
+
+Tot i que indica que el millor k és 2, farem servir 4 ja que són els valors que pot prende G3d (G3 discretitzat).
+
+Per a cadascuna de les parelles de variables hem generat dos gràfics per a comparar l'agrupació de punts en 4  clústers mitjançant kmeans i la classificació real d'aquests punts en les escoles respectives.
+
+```{r message= FALSE, warning=FALSE}
+set.seed(666)
+stu3clusters <- kmeans(x, 4)
+plot(x[c(2,3)], col=stu3clusters$cluster, main="Classificació k-means")
+plot(studentsData[c(21,22)], col=as.factor(studentsData$G3d), main="Classificació real")
+
+plot(x[c(1,3)], col=stu3clusters$cluster, main="Classificació k-means")
+plot(studentsData[c(4,21)], col=as.factor(studentsData$G3d), main="Classificació real")
+```
+
+Després de veure els gràfics anteriors, podem concloure que Classifica correctament les notes més altes, però no acaba d'encertar a la resta d'observacions.
+
+El model anterior s'ha generat usant la mètrica de distància **Euclidiana**, que és la que utilitza el mètode *kmeans* de forma predeterminada. A continuació, generarem de nou el model utilitzant la mesura de distància **Manhattan** (algoritme **Lloyd**) mitjançant el paràmetre *algorithm*. 
+
+```{r message= FALSE, warning=FALSE}
+stu3clusters <- kmeans(x, 4, algorithm = "Lloyd")
+plot(x[c(2,3)], col=stu3clusters$cluster, main="Classificació k-means")
+plot(studentsData[c(21,22)], col=as.factor(studentsData$G3d), main="Classificació real")
+
+plot(x[c(1,3)], col=stu3clusters$cluster, main="Classificació k-means")
+plot(studentsData[c(4,21)], col=as.factor(studentsData$G3d), main="Classificació real")
+```
+
+Veiem com el resultat és lleugerament diferent al anterior model, pero segueix sense acabar de classificar correctament les observacions.
+
+### Densitat
+
+En aquest apartat utilitzarem mètodes de *clustering* basats en la densitat. Concretament, els mètodes **DBSCAN** i **OPTICS**. Aquests mètodes es caracteritzen per identificar zones d'alta concentració o densitat d'observacions separades entre si per zones amb menor densitat. Aquests mètodes, com veureu a continuació, depenen de dos paràmetres: **èpsilon** (radi de veïnatge) i **minPts** (mínim nombre de punts o observacions veïns d'un punt dins del radi èpsilon). Encertar el valor d'aquests paràmetres pot resultar complex.
+
+#### OPTICS
+
+**OPTICS** (*Ordering points to identify cluster structure*) generalitza DBSCAN i soluciona l'inconvenient dels paràmetres inicials. A la pràctica, aquest algoritme no genera una proposta de clústers a partir d'un joc de dades, sinó que **ordena** els punts en funció de la seva **distància d'associabilitat**. Per això, el gràfic més interessant i que millor pot il·lustrar aquest algorisme és el *reachability plot* o gràfic d'associabilitat.
+
+Modificant els paràmetres es pot calibrar la distància d'associabilitat límit del que volem considerar un clúster.
+
+Per tant, el primer que farem serà ordenar els punts.
+
+```{r message= FALSE, warning=FALSE}
+if (!require('dbscan')) install.packages('dbscan'); library('dbscan')
+
+### Executem l'algoritme OPTICS deixant el paràmetre eps amb el seu valor per defecte i fixant el criteri de veïnatge en 10
+res <- optics(x, minPts = 2)
+res
+### Obtenim la ordenació de les observacions o punts
+res$order
+
+```
+
+A partir d'aquesta ordenació, podem generar l'esmentat gràfic d'associativitat. En aquest, podem observar les distàncies d'associativitat de cadascun dels punts. Les valls representen els punts més interiors dels clústers i els cims són els valors *outliners* o que es troben en zones poc denses entre clústers. Cal destacar que com més ample és la vall, més dens és el clúster, perquè més observacions es troben a prop d'aquests.
+
+També afegim un gràfic per veure les traces de les distàncies entre punts.
+
+```{r message= FALSE, warning=FALSE}
+### Gràfic d'accessibilitat
+plot(res)
+```
+
+```{r message= FALSE, warning=FALSE}
+### Dibuixem les traces que relacionen punts
+plot(x, col = "grey")
+polygon(x[res$order,])
+```
+
+## Models supervisats
+
+### Arbre de decisió
+
+Per a dur a terme mineria de dades mitjançant arbres de decisió, necessitem dividir el conjunt de dades entre dades **d'entrenament** i de **prova**. Les proporcions seran 2/3 i 1/3 del conjunt de dades originals, respectivament.
+
+El camp pel qual classificarem serà *G3d* (30). Les variables per a dur a terme la predicció seran:
+
+- Failures (9)
+- G1 (21)
+- G2 (22)
+
+
+```{r}
+set.seed(666)
+y <- studentsData[,30] 
+X <- studentsData[, c(9,21,22)]
+```
+
+```{r}
+split_prop <- 3
+indexes = sample(1:nrow(studentsData), size=floor(((split_prop-1)/split_prop)*nrow(studentsData)))
+trainX<-X[indexes,]
+trainy<-y[indexes]
+testX<-X[-indexes,]
+testy<-y[-indexes]
+```
+
+```{r}
+summary(trainX);
+summary(trainy)
+summary(testX)
+summary(testy)
+```
+
+La proporció dels 4 conjunts de dades és molt semblant, per tant, no haurien de poder esbiaixar les conclusions.
+
+Primer crearem l'arbre de decisió a partir de les dades d'entrenament (trainX i trainy).
+```{r}
+if(!require(C50)){
+    install.packages('C50', repos='http://cran.us.r-project.org')
+    library(C50)
+}
+if(!require(grid)){
+    install.packages('grid', repos='http://cran.us.r-project.org')
+    library(grid)
+}
+if(!require(gridExtra)){
+    install.packages('gridExtra', repos='http://cran.us.r-project.org')
+    library(gridExtra)
+}
+trainy = as.factor(trainy)
+model <- C50::C5.0(trainX, trainy,rules=TRUE )
+summary(model)
+```
+
+A continuació, mostrem l'arbre resultant.
+
+```{r}
+model <- C50::C5.0(trainX, trainy)
+plot(model,gp = gpar(fontsize = 9.5))
+```
+
+Veiem un arbre amb una profunditat de 5 nivells.
+
++ Node 5: 4 observacions de les quals el 100% són un D.
++ Node 6: 38 observacions de les quals el 80% són una C.
++ Node 7: 48 observacions de les quals el 60% són un B.
++ Node 8: 240 observacions de les quals gairebé el 100% són un B.
++ Node 9: 102 observacions de les quals el 80% són un A.
+
+Comprovarem la qualitat del model predient la classe G3d amb les dades de prova que hem inicialitzat anteriorment.
+
+```{r}
+predicted_model <- predict( model, testX, type="class" )
+print(sprintf("La precisió de l'arbre és: %.4f%%",100*sum(predicted_model == testy) / length(predicted_model)))
+```
+
+Ara mostrarem la matriu de confusió. Aquesta permet identificar els tipus d'errors comesos.
+
+```{r}
+mat_conf<-table(testy,Predicted=predicted_model)
+mat_conf
+```
+
+### Models de regressió
+
+En aquest apartat predirem la variable **G3** mitjançant anàlisi regressiva. Per tant, el primer que farem serà crear model de regressió lineal mitjançant la funció **lm** i les variables independents seran les mateixes que a l'arbre de decisió (failures, G1, G2). També, comprovarem que totes les variables involucrades siguin numèriques.
+
+```{r}
+str(studentsData[, c("G3", "failures", "G1", "G2")])
+
+model <- lm(G3 ~ failures + G1 + G2, data = studentsData)
+
+summary(model)
+
+```
+
+Algunes interpretacions:
+
++ El coeficient negatiu per a failures indica que a mesura que augmenta el nombre de fallides, la variable dependent (G3) disminueix.
++ Els coeficients positius per a G1 i G2 suggereixen que valors més alts de G1 i G2 estan associats amb valors més alts de G3.
++ El model explica aproximadament el 84,9% de la variància en la variable dependent G3.
++ L'estadística F és molt significativa (p-value < 2.2e-16), indicant que el model global és significatiu.
+
+En general, el model sembla ser una bona ajustada, i els predictors (failures, G1, G2) són importants per explicar la variabilitat en la variable dependent G3.
+
+# Limitacions
+
+Ens hem trobat diverses limitacions i dificultats a l'hora de generar alguns dels models, a causa de la fase de tractament i neteja de les dades (primera part d'aquest projecte).
+
+Durant la creació del model no supervisat k-means, ens hem trobat que no teníem gaires variables numèriques contínues pel que no he tingut cap flexibilitat a l'hora d'escollir-les. A més, he necessitat afegir la variable G3 discretitzada per a poder tenir una variable dependent etiquetada, cosa que hauria d'haver fet a la fase de tractament de les dades.
+
+A l'arbre de decisió, m'he adonat que no tenia gaires variables correlacionades significativament amb G3. Amb qualsevol de les variables que tenia disponibles, l'arbre sempre acabava tenint regles basades en G1 i G2, que clarament són les més correlacionades amb G3.
+
+# Riscos
+
+Cada model estadístic dels que hem utilitzat té els seus propis riscos i limitacions. A continuació, proporcionarem una breu descripció dels riscos i limitacions comunes de cadascun dels models.
+
+**K-means** és molt sensible a l'elecció inicial dels centroides, per la qual cosa a cada execució es poden arribar a obtenir resultats diferents. També és molt dependent a l'elecció de k. En el nostre cas, ho hem tingut fàcil perquè sabíem amb anterioritat el nombre de clústers que volíem classificar. En últim lloc, aquest algoritme assumeix que els clústers tenen una forma geomètrica esfèrica, característica que pot no ser apropiada per al conjunt de dades que estem analitzant. 
+
+**Els arbres de decisió** poden patir *overfitting*, és a dir, s'adapten massa a les dades d'entrenament i no generalitzen bé, de forma que no proporciona bones prediccions amb noves dades. En el nostre cas no ha succeït, ja que quan hem provat amb les dades de test hem assolit una precisió del 86,6359%. A més, els arbres de decisió poden resultar inestables, pel fet que petites variacions a les dades d'entrenament poden resultar en arbres de decisió significativament diferents.
+
+Els models de **regressió lineal** assumeixen linealitat, homoscedasticitat i normalitat dels residus. Si aquests requisits no es compleixen, els resultats podrien estar esbiaixats o podrien resultar poc fiables. Els *outliners* poden tenir un gran impacte sobre el model, sobretot si tenen una influència desproporcionada a l'estimació dels paràmetres. De la mateixa forma que als arbres de decisió, existeix el perill d'overfitting* si s'utilitzen massa variables predictores.
+
+Per tant, és crucial tenir en compte tots aquests riscos i consideracions abans de decidir quin model emprar en un context determinat. L'elecció d'un model no és una decisió trivial i requereix una comprensió profunda de les característiques específiques de les dades i el problema que volem abordar.
+
+
+
+
+

@@ -1,0 +1,87 @@
+---
+title: 'Mineria de dades: PRA1 - Selecció i preparació d''un joc de dades'
+author: "Autor: Nom estudiant"
+date: "Novembre 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header.html
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+******
+# Enunciat
+******
+Tot estudi analític ha de néixer d'una necessitat per part del negoci o d'una voluntat de dotar-lo d'un coneixement i contingut en les dades que només podrem obtenir a través d'una col·lecció de bones pràctiques basades en la Mineria de Dades.
+
+El món de l'analítica de dades es sustenta en 3 eixos:
+
+1. Un d'ells és el profund **coneixement** que hauríem de tenir **del negoci** a què tractem de donar respostes mitjançant els estudis analítics.
+
+2. L'altre gran eix és sens dubte les **capacitats analítiques** que siguem capaços de desplegar i en aquest sentit, les dues pràctiques d'aquesta assignatura pretenen que l'estudiant realitzi un recorregut sòlid per aquest segon eix.
+
+3. El tercer eix són els **Dades**. Les necessitats del negoci s'han de concretar amb preguntes analítiques que al seu torn siguin viables respondre a partir de les dades de què disposem. La tasca d'analitzar les dades és sens dubte important, però la tasca d'identificar-los i obtenir-los ha de ser per a un analista un repte permanent.
+
+Com **primera part** de l'estudi analític que ens disposem a realitzar, es demana a l'estudiant que completi els següents passos:
+
+1. Plantejar un problema de analítica de dades detallant-ne els objectius analítics i explica una metodologia per a resoldre'ls d'acord amb lo practicat en les PAC anteriors i també d'acord a lo que s'ha aprés en el material didàctic.
+
+2. Seleccionar un joc de dades i justificar-ne l'elecció. El joc de dades **haurà de tenir capacitats** perquè se li puguin aplicar **algorismes supervisats**, **algorismes no supervisats** i **regles d'associació** i haurà d'estar alineat amb el problema analític plantejat al pas anterior.
+
+**Requisit mínim**: El joc de dades ha de tenir com a mínim 500 observacions amb un mínim de 5 variables numèriques, 2 categòriques i 1 binària. A més ha de **ser diferent**, és important que no sigui un dataset usat a les PAC anteriors.
+
+Adjuntem aquí una llista de portals de dades obertes per seleccionar el joc de dades. Es poden utilitzar altres fonts per obtenir el vostre joc de dades, però recordeu de citar-les:
+
+* **Dades obertes**:
+  + [Google Dataset Search](https://datasetsearch.research.google.com/)
+  + [Datos abiertos España](https://datos.gob.es/es/catalogo?q=&frequency=%7B"type"%3A+"months"%2C+"value"%3A+"1"%7D&sort=score+desc%2C+metadata_modified+desc)
+  + [Datos abiertos Madrid](https://datos.madrid.es/portal/site/egob/)
+  + [Datos abiertos Barcelona](https://opendata-ajuntament.barcelona.cat/es/)
+  + [Datos abiertos Londres](https://data.london.gov.uk/)
+  + [Datos abiertos New York](https://opendata.cityofnewyork.us/)
+  
+* **Conjunts de dades per a aprenentatge automàtic i investigació**
+  + [UCI Machine Learning](https://archive.ics.uci.edu/ml/datasets.php)
+  + [Datasets for machine-learning research (Wikipedia)](https://en.wikipedia.org/wiki/List_of_datasets_for_machine-learning_research)
+  + [Kaggle datasets](https://www.kaggle.com/datasets)
+
+3. Realitzar una anàlisi exploratòria de el joc de dades seleccionat.
+
+4. Realitzar tasques de neteja i condicionat per poder ser usat en processos de modelatge.
+
+5. Realitzar mètodes de discretització
+
+6. Aplicar un estudi PCA sobre el joc de dades. Tot i no estar explicat en el material didàctic, es valorarà si en lloc de PCA investigueu pel vostre compte i apliqueu SVD (Single Value Decomposition).
+* **Alguns recursos**
+  * [PCA per reducció de dimensions](https://www.aprendemachinelearning.com/comprende-principal-component-analysis/)
+  * [SVD Singular Value Decomposition](https://web.mit.edu/be.400/www/SVD/Singular_Value_Decomposition.htm)
+
+Per a totes les PRA **cal documentar** a cada apartat de l'exercici pràctic que s'ha fet, perquè s'ha fet i com s'ha fet. Així mateix, totes les decisions i conclusions hauran de ser presentades de forma raonada i clara, **contextualitzant els resultats**, és a dir, especificant tots i cadascun dels passos que s'hagin dut a terme per resoldre'ls. Finalment, incloeu una **conclusió final** resumint els resultats obtinguts en la pràctica i indiqueu eventuals **citacions bibliogràfiques**, fonts internes/externes i materials de recerca.
+
+* **Document lliurable**
+
+Només cal lliurar el document html i cal fer-lo amb el següent nom 75.584-PRA1-NomEstudiant.html
+
+******
+# Recursos de programació
+******
+* Incloem en aquest apartat una llista de recursos de programació per a mineria de dades on podreu trobar exemples, idees i inspiració:
+  + [Material addicional del llibre: Minería de datos Modelos y Algoritmos](http://oer.uoc.edu/libroMD/)
+  + [Espai de recursos UOC per a ciència de dades](http://datascience.recursos.uoc.edu/)
+  + [Cercador de codi R](https://rseek.org/)  
+  + [Col·lecció de cheatsheets en R](https://www.rstudio.com/resources/cheatsheets/)  
+  
+
+******

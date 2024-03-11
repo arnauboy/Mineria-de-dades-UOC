@@ -1,0 +1,279 @@
+---
+title: 'Mineria de dades: PEC2 - Mètodes no supervisats'
+author: "Autor: Arnau Garcia Rodríguez"
+date: "Novembre 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc_depth: 2
+    includes:
+      in_header: 05.584-PAC-header.html
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercici 1
+Presenta el joc de dades, nom i significat de cada columna, així com les distribucions dels seus valors.  
+
+Realitza un estudi aplicant el mètode K-means, similar al dels exemples 1.1 i 1.2    
+
+## Resposta 1
+> Escriu aquí la resposta a la pregunta
+
+```{r message= FALSE, warning=FALSE}
+set.seed(2)
+```
+Utilitzarem un joc de dades anomenat Hawks (paquet Stat2Data) amb informació sobre falcons. Les dades són un subconjunt de les originals, que van ser recollides per estudiants i professors del Cornell College a Mount Vernon, Iowa.  
+
+A continuació, s'importa el joc de dades i es mostra un resum de cadascuna de les característiques:
+
+```{r message= FALSE, warning=FALSE}
+if (!require('Stat2Data')) install.packages('Stat2Data'); library('Stat2Data')
+data("Hawks")
+summary(Hawks)
+```
+
+#### Diccionari de les columnes
+
++ **Month**: mes
++ **Day**: dia
++ **Year**: any 1992-2003
++ **CaptureTime**: hora i minut de captura 
++ **ReleaseTime**: hora i minut d'alliberament
++ **BandNumber**: codi d'identificació la banda 
++ **Species**: espècie (CH=Cooper's, RT=Red-tailed, SS=Sharp-Shinned)
++ **Age**: edat (A=Adult o I=Inmadur)
++ **Sex**: sexe (F=Femella o M=Mascle)      
++ **Wing**: longitud en mm de la ploma de l'ala primària
++ **Weight**: pes del cos en grams(g)
++ **Culmen**: longitud en mm del bec superior     
++ **Hallux**: longitud en mm de la garra al taló            
++ **Tail**: mesura en mm en relació a la longitud de la cua
++ **StandardTail**:  longitud estàndard de la cua en mm   
++ **Tarsus**: longitud de l'os del peu        
++ **WingPitFat**: quantitat de greix a la fossa de l'ala      
++ **KeelFat**: quantitat de greix a l'estèrnum       
++ **Crop**: quantitat de material al búxer (1=ple o 0=buit) 
+
+Prescindirem de l'atribut Species i ens basarem en les dimensions categòriques: **Wing**, **Weight**, **Culmen**, **Hallux** per a predir l'espècie dels falcons. Aplicarem el mètode d'agregació *k-means* per a agrupar les dades en clústers. 
+
+Prime, s'importa la llibreria **cluster**:
+
+```{r message= FALSE, warning=FALSE}
+if (!require('cluster')) install.packages('cluster')
+library(cluster)
+```
+
+Seguidament, ens quedem amb les quatre columnes categòriques d'interès:
+
+```{r message= FALSE, warning=FALSE}
+x <- na.omit(Hawks[,10:13])
+summary(x)
+```
+
+Com no sabem el nombre idoni de clústers, provem amb diversos valors. Es pot observar una gràfica que conté informació sobre cadascun dels models resultants de k-means, com la suma dels quadrats de les distàncies dels punts de cadascun dels clústers respecte el centre (withinss). Seleccionarem el valor que es trobi al colze de la corba, on comença a estabilitzar-se i per més clústers que afegeixis la densitat de punts no varia de forma significativa.
+
+```{r message= FALSE, warning=FALSE}
+resultados <- rep(0, 10)
+for (i in c(2,3,4,5,6,7,8,9,10))
+{
+  fit           <- kmeans(x, i)
+  resultados[i] <- fit$tot.withinss
+}
+plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Nombre de clústers",ylab="tot.tot.withinss")
+```
+
+Després de veure el gràfic, decidim que el valor òptim de clústers (k) és 4.
+
+Per a corroborar aquest resultat, existeixen llibreries d'R que ens poden ajudar. Podem utilitzar el mètode *kmeansruns* del paquet **fpc** que seleccionarà la que millor resultat obtingui d'acord amb els criteris de la silueta mitjana (asw) i *Calinski-Harabasz* ("ch").   
+
+```{r message= FALSE, warning=FALSE}
+if (!require('fpc')) install.packages('fpc'); library('fpc')
+fit_ch  <- kmeansruns(x, krange = 1:10, criterion = "ch") 
+fit_asw <- kmeansruns(x, krange = 1:10, criterion = "asw") 
+```
+
+Podem observar el valor amb el qual s'ha obtingut el millor resultat fent servir tots dos criteris.
+
+```{r message= FALSE, warning=FALSE}
+fit_ch$bestk
+fit_asw$bestk
+
+plot(1:10,fit_ch$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criteri Calinski-Harabasz")
+plot(1:10,fit_asw$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criteri silueta mitja")
+```
+
+Segons el criteri Calinski-Harabasz indica que la que hauria de ser 3, però segons la silueta mitjana hauria de ser 2. Nosaltres sabem que el nombre d'espècies de falcons al joc de dades és 3, per la qual cosa provarem amb aquest mateix nombre de clústers i veurem com rendeix.
+
+Per a cadascuna de les parelles de variables categòriques hem generat dos gràfics per a comparar l'agrupació de punts en 3 clústers mitjançant kmeans i la classificació real d'aquests punts en les espècies respectives.
+
+**Llegenda gràfic de classificació real**
+
++ <span style="color:black">*Cooper's*</span>
++ <span style="color:red">*Red-tailed*</span>
++ <span style="color:green">*Sharp-Shinned*</span>
+
+```{r message= FALSE, warning=FALSE}
+hawks3clusters <- kmeans(x, 3)
+
+plot(x[c(1,2)], col=hawks3clusters$cluster, main="Classificació k-means")
+plot(Hawks[c(10,11)], col=as.factor(Hawks$Species), main="Classificació real")
+```
+```{r message= FALSE, warning=FALSE}
+
+plot(x[c(2,3)], col=hawks3clusters$cluster, main="Classificació k-means")
+plot(Hawks[c(11,12)], col=as.factor(Hawks$Species), main="Classificació real")
+```
+```{r message= FALSE, warning=FALSE}
+
+plot(x[c(3,4)], col=hawks3clusters$cluster, main="Classificació k-means")
+plot(Hawks[c(12,13)], col=as.factor(Hawks$Species), main="Classificació real")
+```
+```{r message= FALSE, warning=FALSE}
+
+plot(x[c(1,4)], col=hawks3clusters$cluster, main="Classificació k-means")
+plot(Hawks[c(10,13)], col=as.factor(Hawks$Species), main="Classificació real")
+```
+```{r message= FALSE, warning=FALSE}
+
+plot(x[c(1,3)], col=hawks3clusters$cluster, main="Classificació k-means")
+plot(Hawks[c(10,12)], col=as.factor(Hawks$Species), main="Classificació real")
+```
+```{r message= FALSE, warning=FALSE}
+
+plot(x[c(2,4)], col=hawks3clusters$cluster, main="Classificació k-means")
+plot(Hawks[c(11,13)], col=as.factor(Hawks$Species), main="Classificació real")
+```
+
+Veiem com l'algoritme k-means, per culpa de l'aleatorietat dels centroides inicials, no és capaç de classificar bé en espècies, ja que separa els *Red-tailed* en dos clústers i ajunta els altres dos. Cal mencionar que en alguna de les execucions durant l'experiment sí que ha sigut capaç de classificar-lo correctament.
+# Exercici 2
+Amb el joc de dades proporcionat realitza un estudi aplicant DBSCAN i OPTICS, similar al de l'exemple 2   
+
+## Resposta 2
+> Escriu aquí la resposta a la pregunta
+
+En aquest apartat utilitzarem mètodes de *clustering* basats en la densitat. Concretament, els mètodes **DBSCAN** i **OPTICS**. Aquests mètodes es caracteritzen per identificar zones d'alta concentració o densitat d'observacions separades entre si per zones amb menor densitat. Aquests mètodes, com veureu a continuació, depenen de dos paràmetres: **èpsilon** (radi de veïnatge) i **minPts** (mínim nombre de punts o observacions veïns d'un punt dins del radi èpsilon). Encertar el valor d'aquests paràmetres pot resultar complex.
+
+Comencem construint el joc de dades i mostrem un gràfic amb 3 zones ben diferenciades.
+
+```{r message= FALSE, warning=FALSE}
+if (!require('dbscan')) install.packages('dbscan'); library('dbscan')
+set.seed(2)
+n <- 400
+x <- cbind(
+x = runif(3, 0, 1) + rnorm(n, sd=0.1),
+y = runif(3, 0, 1) + rnorm(n, sd=0.1)
+)
+plot(x, col=rep(1:3, time = 100))
+```
+
+### OPTICS
+
+**OPTICS** (*Ordering points to identify cluster structure*) generalitza DBSCAN i soluciona l'inconvenient dels paràmetres inicials. A la pràctica, aquest algoritme no genera una proposta de clústers a partir d'un joc de dades, sinó que **ordena** els punts en funció de la seva **distància d'associabilitat**. Per això, el gràfic més interessant i que millor pot il·lustrar aquest algorisme és el *reachability plot* o gràfic d'associabilitat.
+
+Modificant els paràmetres es pot calibrar la distància d'associabilitat límit del que volem considerar un clúster.
+
+Per tant, el primer que farem serà ordenar els punts.
+
+```{r message= FALSE, warning=FALSE}
+### Executem l'algoritme OPTICS deixant el paràmetre eps amb el seu valor per defecte i fixant el criteri de veïnatge en 10
+res <- optics(x, minPts = 10)
+res
+### Obtenim la ordenació de les observacions o punts
+res$order
+
+```
+
+A partir d'aquesta ordenació, podem generar l'esmentat gràfic d'associativitat. En aquest, podem observar les distàncies d'associativitat de cadascun dels punts. Les valls representen els punts més interiors dels clústers i els cims són els valors *outliners* o que es troben en zones poc denses entre clústers. Cal destacar que com més ample és la vall, més dens és el clúster, perquè més observacions es troben a prop d'aquests.
+
+També afegim un gràfic per veure les traces de les distàncies entre punts.
+
+```{r message= FALSE, warning=FALSE}
+### Gràfic d'accessibilitat
+plot(res)
+```
+
+```{r message= FALSE, warning=FALSE}
+### Dibuixem les traces que relacionen punts
+plot(x, col = "grey")
+polygon(x[res$order,])
+```
+
+### DBSCAN
+
+A continuació, experimentarem amb èpsilon (radi de veïnatge) utilitzant l'algoritme **DBSCAN**. Això limitarà la distància límit d'accessibilitat i canviarà els resultats obtinguts.
+
+
+```{r message= FALSE, warning=FALSE}
+res <- extractDBSCAN(res, eps_cl = .065)
+res
+plot(res) ## negre indica soroll
+```
+
+Al gràfic anterior es mostren pintats els 4 clústers diferents i en negre apareixen els valors outliners. També podem observar la línia discontínua horitzontal que marca el límit d'accessibilitat
+
+A continuació, mostrarem els clústers en formes convexes.
+
+```{r message= FALSE, warning=FALSE}
+hullplot(x, res)
+```
+  
+Com és d'imaginar, si pugem el límit hi haurà menys valors *outliners*, i el mateix a l'inrevés.
+
+Per exemple:
+
+```{r message= FALSE, warning=FALSE}
+# Baixem a 0.05 eps
+res <- extractDBSCAN(res, eps_cl = .05)
+res
+plot(res) 
+hullplot(x, res)
+```
+
+```{r message= FALSE, warning=FALSE}
+# Pujem a 0.12 eps
+res <- extractDBSCAN(res, eps_cl = .12)
+res
+plot(res) 
+hullplot(x, res)
+```
+
+Aquests dos experiments han resultat veritablement interessants.
+
+Per un costat, al baixar el límit d'accessibilitat s'han generat 5 petits clústers allunyats entre ells i 153 punts de soroll.
+
+D'altra banda, quan l'hem pujat, hem obtingut únicament 2 punts de soroll i s'han agrupat les observacions en 2 únics clústers. Com més alts són els cims o punts de soroll, major ha de ser el límit d'accessibilitat perquè les observacions passin a formar part del mateix clúster.
+
+Vegem ara una variant de DBSCAN. El valor xi ens permetrà visualitzar els clústers en funció del canvi en la densitat relativa d'aquests.
+
+
+```{r message= FALSE, warning=FALSE}
+### Extracció del clustering jeràrquic en funció de la variació de la densitat pel mètode xi
+res <- extractXi(res, xi = 0.05)
+res
+plot(res)
+hullplot(x, res)
+```
+
+# Exercici 3
+Realitza una comparativa dels mètodes *k-means* i *DBSCAN* 
+
+## Resposta 3
+> Escriu aquí la resposta a la pregunta
+
+Tant k-means com DBSCAN són dos models de classificació no supervisada basats molt interessants i poden resultar molt útils per classificar observacions basant-se en les seves característiques.
+
+Per un costat, **DBSCAN** és capaç de trobar clústers de qualsevol forma geomètrica, com hem vist a l'últim exemple de l'exercici 2. També és molt bo identificant valors extrems. Tampoc li cal especificar el nombre de clústers que volem que identifiqui. Com a inconvenient, encertar el valor òptim d'èpsilon i minPts.
+DBSCAN pressuposa que la densitat dels clústers serà constant. Contràriament, OPTICS permet que la densitat sigui variable per la possibilitat de fixar el límit d'accessibilitat on vulguem.
+
+D'altra banda, k-means té el gran inconvenient que s'ha d'indicar el nombre de clústers abans d'executar l'algoritme, pel que encertar el nombre correcte pot portar uns quants intents.
+
+En conclusió, no hem aconseguit que el model **k-means** classifiqui les observacions per espècie correctament. Això és probablement degut a l'aleatorietat dels centroides inicials, ja que en alguna de les execucions en el transcurs de la redacció d'aquesta pràctica sí que ha sigut capaç de classificar les espècies correctament. Respecte al mètode basat en densitat DBSCAN s'ha assolit tenir tres clústers molt diferenciats i he jugat amb el valor èpsilon per a calibrar el límit d'accessibilitat.
