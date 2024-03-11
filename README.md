@@ -1,1 +1,1 @@
-"# Mineria-de-dades-UOC" 
+# Mineria-de-dades-UOC
